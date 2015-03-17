@@ -1,8 +1,8 @@
 # Site navigation links
 
-- title: Getting Started
-  url: /getting-started/
-  excerpt: "Everything you need to know to get started with Skinny Bones and Jekyll."
+- title: Syllabus
+  url: /syllabus/
+  excerpt: "what the research is leading to"
   image: 400x250.gif
 
 - title: Sample Articles
