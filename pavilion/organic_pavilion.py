@@ -238,11 +238,19 @@ def bounds(cfg):
     pad = 0.6 + cfg["organic"]["sway_m"]
     lo = [C[:, 0].min() - e["radius_m"][0] - pad, C[:, 1].min() - e["radius_m"][1] - pad, 0.0]
     hi = [C[:, 0].max() + e["radius_m"][0] + pad, C[:, 1].max() + e["radius_m"][1] + pad, height_m(cfg) + 0.6]
+    # tunnels between pods reach out to the shared cell edges
+    r = e["link_radius_m"] + pad
+    for _, _, b, _ in links(cfg):
+        lo = [min(lo[0], b[0] - r), min(lo[1], b[1] - r), 0.0]
+        hi = [max(hi[0], b[0] + r), max(hi[1], b[1] + r), max(hi[2], b[2] + r)]
     return np.array(lo), np.array(hi)
 
 
-def field(cfg):
-    """Signed field on a regular grid: negative inside the printed material."""
+def field(cfg, extras=False):
+    """Signed field on a regular grid: negative inside the printed material.
+
+    With extras=True also returns the raw surface value f (for curvature), the
+    envelope distance and the local sheet thickness, used by analysis.py."""
     h = cfg["voxel_m"]
     lo, hi = bounds(cfg)
     axes = [np.arange(lo[a] - 1.5 * h, hi[a] + 2 * h, h, dtype=np.float32) for a in range(3)]
@@ -265,6 +273,8 @@ def field(cfg):
     F = smax(dist - t / 2, env, cfg["envelope"]["rim_round_m"])
     F = np.maximum(F, -Z)                                # flat cut at the ground only
     F = np.maximum(F, -tunnel_floor_sdf(cfg, X, Y, Z))   # walk-through floor between pods
+    if extras:
+        return F, axes, {"f": f, "env": env, "thickness": t}
     return F, axes
 
 

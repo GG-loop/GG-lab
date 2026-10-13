@@ -115,3 +115,43 @@ python organic_pavilion.py -c my.json           # settings copied from the studi
 - Cut the print parts along the form instead of on a box grid; the grid currently leaves a few thin slivers.
 - Run a structural check of the cantilevered crown and the stacked floors.
 - Reduce the mass of the stacked configurations: thinner upper sheets, or a ribbed sheet instead of a solid one.
+
+---
+
+# Stairs and structural feasibility
+
+`analysis.py` checks whether the organic pavilion can be climbed and whether it will stand. It runs on the two-storey tower by default.
+
+```bash
+python analysis.py              # stairs + structure, writes out_analysis/
+python analysis.py --no-fe      # stairs only (about 1 minute)
+python build_report.py          # viewer/feasibility.html from out_analysis/
+```
+
+**Stairs.** The analysis finds where to put the stair, then checks it against the rules.
+
+- **Rules:** riser 15–17 cm, tread at least 30 cm, 2R+G = 62–64 cm (Italian DM 236/1989 art. 8.1.10), at most 15 risers per flight, landings at least 1.20 m, width at least 1.20 m, headroom at least 2.10 m, 1.00 m parapets on open sides.
+- **Route search:** it looks at every walkable patch of the sheet (slope under 60°, headroom, away from free rims) and every straight printed flight that could link two patches or start from the ground. The cost of a route rewards the ideal stair pitch and penalises cross slope, extra printed material, and cutting through the sheet.
+- **The stair:** a regular stair is then laid along the cheapest route. Its treads are fused into the sheet, sit on their own printed stringer in free flights, or stand on the ground. The report lists every opening the stair needs in the sheet.
+
+**Structure.** A voxel finite-element model of the whole printed solid, stairs included: 40 mm hexahedra, solved with algebraic multigrid (pyamg).
+
+- **Loads:** self weight, crowd on stairs and floors, snow on up-facing areas, and wind, combined with Eurocode / NTC 2018 partial factors.
+- **What is checked:**
+  - tension along and across the print layers (printed polymer is weak across them), and compression;
+  - local buckling, using the shell radius taken from the Gaussian curvature of the minimal surface;
+  - the tension crossing every assembly cut between printed parts;
+  - deflection and overturning in wind.
+
+This is a screening model, not a design calculation. The report states its limits.
+
+**Result for the two-storey tower** (7.2 m cells, `out_analysis/report.json`, report in `viewer/feasibility.html`)
+
+- **Stairs:** 33 risers of 16.9 cm with 30 cm treads (2R+G = 63.8 cm), in flights of 15 + 15 + 3 with two 1.20 m landings. Clear width is at least 1.70 m and headroom 2.10 m.
+  - The sheet never offers a continuous walkable slope with enough room, so the stair is printed on its own stringers.
+  - It needs an opening of about 11 m² in the shell.
+  - Steps that follow the surface need flatter climbing tubes: a cell about 0.6 times as tall as it is wide.
+- **Structure:** the highest utilisation is 0.69 and 99.9% of the material is below 0.28. The hotspots are the wall foot, governed by tension across the print layers, and the rim of the stair opening, governed by compression.
+- **Assembly joints:** the worst one is at 0.27 of the capacity of a bolted joint.
+- **Deflection and wind:** service deflection is 7 mm, against a span/250 limit of 29 mm. The tower is stable against wind without anchors.
+- **Size:** 33 t of printed rPETG-GF.

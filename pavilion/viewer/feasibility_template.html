@@ -1,0 +1,483 @@
+<title>Neovius Tower Feasibility</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: an engineering memo. A single reading column (~70ch) with the 3D model
+   breaking out to full width; tables scroll inside their own frames. */
+:root {
+  --bg: #f3f2ee;
+  --paper: #fbfaf7;
+  --ink: #1d1c1a;
+  --muted: #67635c;
+  --line: #dcd8cf;
+  --accent: #c76a12;
+  --skin: #efece5;
+  --stair: #2f6f8f;
+  --ok: #2f7d4a;
+  --warn: #b7791f;
+  --bad: #b43c2a;
+  --u0: #9fb7c7;
+  --u1: #5fae6e;
+  --u2: #e0b03a;
+  --u3: #d9572f;
+  --u4: #7e1d16;
+  --scene: #e9ebec;
+  --ground: #d1ccc2;
+  --font-display: "Syne", "Avenir Next", "Futura", "Trebuchet MS", sans-serif;
+  --font-ui: "IBM Plex Sans", "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+  --font-data: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #131416; --paper: #1a1b1e; --ink: #eceae6; --muted: #a39f97; --line: #2f3034;
+    --accent: #f0a04a; --skin: #e6e2da; --stair: #6fb2d4; --ok: #79c48e; --warn: #e6b45a; --bad: #f08a6c;
+    --u0: #6f8899; --u1: #5fae6e; --u2: #e0b03a; --u3: #e86a40; --u4: #b8342a;
+    --scene: #1b1d21; --ground: #24262a;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #131416; --paper: #1a1b1e; --ink: #eceae6; --muted: #a39f97; --line: #2f3034;
+  --accent: #f0a04a; --skin: #e6e2da; --stair: #6fb2d4; --ok: #79c48e; --warn: #e6b45a; --bad: #f08a6c;
+  --u0: #6f8899; --u1: #5fae6e; --u2: #e0b03a; --u3: #e86a40; --u4: #b8342a;
+  --scene: #1b1d21; --ground: #24262a;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+body { background: var(--bg); color: var(--ink); font-family: var(--font-ui); font-size: 15.5px; line-height: 1.55; }
+main { max-width: 1180px; margin: 0 auto; padding-inline: 20px; padding-block: 28px 64px; display: flex; flex-direction: column; gap: 40px; }
+.col { max-width: 72ch; }
+h1 { font-family: var(--font-display); font-weight: 800; font-size: clamp(2rem, 5vw, 3.1rem); line-height: 0.98; letter-spacing: -0.02em; margin: 6px 0 14px; text-wrap: balance; }
+h2 { font-family: var(--font-display); font-weight: 700; font-size: 1.45rem; margin: 0 0 10px; letter-spacing: -0.01em; }
+h3 { font-size: 1rem; margin: 18px 0 6px; }
+p { margin: 0 0 10px; }
+.eyebrow { font-size: 0.74rem; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); }
+.lede { font-size: 1.08rem; color: var(--ink); }
+.muted { color: var(--muted); }
+.num { font-family: var(--font-data); font-variant-numeric: tabular-nums; }
+
+.verdicts { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; }
+.verdict { background: var(--paper); border: 1px solid var(--line); border-radius: 8px; padding: 12px 14px; display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.verdict .k { font-size: 0.8rem; color: var(--muted); }
+.verdict .v { font-family: var(--font-data); font-size: 1.15rem; }
+.verdict .d { font-size: 0.85rem; color: var(--muted); line-height: 1.4; }
+.pill { align-self: flex-start; font-size: 0.74rem; font-weight: 600; padding: 1px 8px; border-radius: 999px; border: 1px solid currentColor; }
+.ok { color: var(--ok); } .warn { color: var(--warn); } .bad { color: var(--bad); }
+
+.figure { display: flex; flex-direction: column; gap: 10px; }
+.stage { position: relative; height: min(72vh, 680px); min-height: 360px; border-radius: 10px; overflow: hidden; border: 1px solid var(--line); background: var(--scene); }
+.stage canvas { display: block; width: 100%; height: 100%; touch-action: none; }
+.marker { position: absolute; transform: translate(-50%, -50%); width: 24px; height: 24px; border-radius: 50%; display: grid; place-items: center;
+  font-family: var(--font-data); font-size: 0.75rem; font-weight: 500; color: #fff; background: var(--bad); border: 2px solid #fff; pointer-events: none; }
+.marker.joint { background: var(--warn); border-radius: 4px; }
+.controls { display: flex; flex-wrap: wrap; gap: 8px 18px; align-items: center; font-size: 0.92rem; }
+.seg { display: inline-flex; border: 1px solid var(--line); border-radius: 999px; overflow: hidden; }
+.seg button { font: inherit; border: 0; background: var(--paper); color: var(--ink); padding: 5px 12px; cursor: pointer; }
+.seg button[aria-pressed="true"] { background: var(--ink); color: var(--bg); }
+.toggle { display: inline-flex; gap: 6px; align-items: center; cursor: pointer; }
+.toggle input, input[type="range"] { accent-color: var(--accent); }
+button:focus-visible, input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.ramp { display: flex; align-items: center; gap: 8px; font-family: var(--font-data); font-size: 0.78rem; color: var(--muted); }
+.ramp i { display: block; width: 160px; height: 10px; border-radius: 2px; background: linear-gradient(90deg, var(--u0) 0%, var(--u1) 30%, var(--u2) 53%, var(--u3) 67%, var(--u4) 100%); }
+
+.tbl { overflow-x: auto; border: 1px solid var(--line); border-radius: 8px; background: var(--paper); }
+table { border-collapse: collapse; width: 100%; font-size: 0.9rem; }
+th, td { text-align: left; padding: 7px 12px; border-bottom: 1px solid var(--line); vertical-align: top; }
+th { font-size: 0.74rem; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); background: var(--bg); }
+tr:last-child td { border-bottom: 0; }
+td.num, th.num { text-align: right; white-space: nowrap; }
+
+.profile { border: 1px solid var(--line); border-radius: 8px; background: var(--paper); overflow-x: auto; }
+.profile svg { display: block; min-width: 640px; width: 100%; height: auto; }
+.legend { display: flex; flex-wrap: wrap; gap: 6px 16px; font-size: 0.85rem; color: var(--muted); }
+.legend span::before { content: ""; display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 6px; background: var(--c); vertical-align: -1px; }
+ol.zones { margin: 0; padding-left: 1.3em; }
+ol.zones li { margin-bottom: 6px; }
+.two { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 24px; align-items: start; }
+.two > * { min-width: 0; }
+@media (max-width: 560px) { body { font-size: 15px; } main { padding-inline: 16px; } }
+</style>
+
+<main>
+  <header class="col">
+    <div class="eyebrow">Feasibility check · two-storey Neovius pavilion · screening level</div>
+    <h1>Neovius Tower Feasibility</h1>
+    <p class="lede" id="lede"></p>
+  </header>
+
+  <section class="verdicts" id="verdicts" aria-label="Summary"></section>
+
+  <section class="figure" aria-label="3D model">
+    <div class="controls">
+      <div class="seg" role="group" aria-label="Colour">
+        <button type="button" id="c-util" aria-pressed="true">Utilisation</button>
+        <button type="button" id="c-plain" aria-pressed="false">Material</button>
+      </div>
+      <label class="toggle"><input type="checkbox" id="t-stairs" checked> Stairs</label>
+      <label class="toggle"><input type="checkbox" id="t-zones" checked> Most loaded zones</label>
+      <label class="toggle"><input type="checkbox" id="t-joints" checked> Worst joints</label>
+      <label class="toggle">Section <input type="range" id="cut" min="0" max="100" value="0" aria-label="Section cut"></label>
+      <span class="ramp" id="ramp">0 <i></i> 1.5 × design strength</span>
+    </div>
+    <div class="stage" id="stage"></div>
+    <p class="muted" style="font-size:0.85rem;margin:0">Colours show the highest utilisation over all load cases (stress / design strength, or compression / local buckling stress). Red circles: the most loaded zones, numbered as in the list below. Amber squares: the assembly joints with the highest tension.</p>
+  </section>
+
+  <section class="col" id="stairs">
+    <h2>Stairs</h2>
+    <div id="stairs-text"></div>
+  </section>
+  <section>
+    <div class="profile" id="profile"></div>
+    <div class="legend" style="margin-top:8px">
+      <span style="--c:var(--stair)">printed flight (own stringer)</span>
+      <span style="--c:var(--accent)">steps fused onto the shell</span>
+      <span style="--c:var(--muted)">on the ground</span>
+      <span style="--c:var(--bad)">opening cut in the sheet</span>
+    </div>
+  </section>
+  <section class="two">
+    <div>
+      <h3>Rules and what the stair achieves</h3>
+      <div class="tbl"><table id="rules"></table></div>
+    </div>
+    <div>
+      <h3>Openings the stair needs</h3>
+      <div class="tbl"><table id="openings"></table></div>
+      <p class="muted" style="font-size:0.85rem;margin-top:8px">Openings are where the 1.20 m wide, 2.10 m high stair volume runs through the sheet. Their rims need a thickened edge beam.</p>
+    </div>
+  </section>
+
+  <section class="col" id="structure">
+    <h2>Structure</h2>
+    <div id="structure-text"></div>
+  </section>
+  <section class="two">
+    <div>
+      <h3>Load cases</h3>
+      <div class="tbl"><table id="cases"></table></div>
+    </div>
+    <div>
+      <h3>Design strengths (printed polymer)</h3>
+      <div class="tbl"><table id="strengths"></table></div>
+    </div>
+  </section>
+  <section class="col">
+    <h3>Most difficult parts</h3>
+    <ol class="zones" id="zones"></ol>
+  </section>
+  <section>
+    <h3>Assembly joints between printed parts (worst first)</h3>
+    <div class="tbl"><table id="joints"></table></div>
+  </section>
+
+  <section class="col" id="method">
+    <h2>How this was checked, and its limits</h2>
+    <div id="method-text"></div>
+  </section>
+</main>
+
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+<script>
+const DATA = /*__DATA__*/null;
+const R = DATA.report, ST = R.stairs, SS = R.structure;
+const fmt = (x, d = 1) => (x === null || x === undefined) ? "–" : Number(x).toLocaleString("en-GB", { minimumFractionDigits: d, maximumFractionDigits: d });
+const cls = (u) => u <= 0.8 ? "ok" : u <= 1.0 ? "warn" : "bad";
+const word = (u) => u <= 0.8 ? "passes" : u <= 1.0 ? "tight" : "fails";
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s).replace(/[&<>]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c]));
+
+// ===================================================================== text
+const cfg = R.config;
+const util = SS ? SS.utilisation : null;
+const joints = SS ? SS.joints : [];
+const jointsOver = joints.filter((j) => j.utilisation > 1).length;
+const zones = SS ? SS.zones : [];
+
+$("lede").innerHTML =
+  `Two Neovius cells of ${fmt(cfg.cell_m[0])} × ${fmt(cfg.cell_m[1])} × ${fmt(cfg.cell_m[2])} m stacked into a ` +
+  `${fmt(R.mesh.bounding_box_m[0])} × ${fmt(R.mesh.bounding_box_m[1])} × ${fmt(R.mesh.bounding_box_m[2])} m pavilion, ` +
+  `twisted ${fmt(cfg.organic.twist_deg, 0)}° per storey, with a continuous stair from the ground to the upper chamber. ` +
+  `Printed in ${esc(SS ? SS.material.name : "polymer")} and assembled from parts of ` +
+  `${cfg.printer.build_volume_m.join(" × ")} m. ` +
+  (SS ? `In short: ${headline()}` : "");
+
+function headline() {
+  const parts = [];
+  parts.push(SS.utilisation.p99 <= 1 ? "<b>the shell carries its loads</b> with stresses well inside the printed polymer's strength"
+                                     : "<b>the shell is overstressed in places</b>");
+  if (!SS.overturning.ok) parts.push("<b>the tower must be anchored</b> to its foundation against wind");
+  const hardest = zones[0];
+  if (hardest && hardest.max_utilisation > 1) parts.push(`the hardest spots are <b>${hardest.governing}</b> of the ${hardest.centre_m[2] < 3 ? "lower" : "upper"} walls`);
+  if (ST && ST.openings.length) parts.push(`the stair only fits by <b>cutting ${fmt(ST.openings.reduce((a, o) => a + o.area_m2, 0), 0)} m² of shell</b>`);
+  return parts.join("; ") + ". A structural engineer's shell model and tests on printed joints come before building.";
+}
+
+const V = [];
+if (ST) V.push({ k: "Stairs", v: `${ST.risers} × ${fmt(ST.riser_m * 100)} cm`, cls: ST.issues.length ? "warn" : "ok",
+  p: ST.issues.length ? "with issues" : "code compliant",
+  d: `tread ${fmt(ST.tread_m * 100, 0)} cm, 2R+G ${fmt(ST.blondel_m * 100)} cm, flights ${ST.flights.join(" + ")}; needs ${ST.openings.length} opening(s) in the sheet` });
+if (SS) {
+  V.push({ k: "Shell strength", v: `${fmt(util.p99, 2)} (99%) · ${fmt(util.p99_9, 2)} (99.9%)`, cls: cls(util.p99_9), p: word(util.p99_9),
+    d: `${fmt(util.share_over_1 * 100, 2)}% of the material above its design strength (peaks at sharp corners of the voxel model)` });
+  const jw = joints[0];
+  V.push({ k: "Assembly joints", v: jw ? `${fmt(jw.utilisation, 2)} worst` : "–", cls: jw ? cls(jw.utilisation) : "ok", p: jw ? word(jw.utilisation) : "",
+    d: `${jointsOver} of ${joints.length} cut planes carry more tension than a bolted joint at ${fmt(SS.material.joint_efficiency * 100, 0)}% efficiency` });
+  const dOk = SS.max_displacement_mm <= SS.displacement_limit_mm;
+  V.push({ k: "Deflection (service)", v: `${fmt(SS.max_displacement_mm)} mm`, cls: dOk ? "ok" : "bad", p: dOk ? "passes" : "fails",
+    d: `limit span/250 = ${fmt(SS.displacement_limit_mm)} mm; polymer creep can double this over years` });
+  V.push({ k: "Overturning (wind)", v: `${fmt(SS.overturning.M_restoring_kNm, 0)} / ${fmt(SS.overturning.M_overturning_kNm, 0)} kNm`,
+    cls: SS.overturning.ok ? "ok" : "bad", p: SS.overturning.ok ? "stable" : "needs anchors",
+    d: `restoring (0.9 × self weight ${fmt(SS.weight_kN, 0)} kN) vs. 1.5 × wind ${fmt(SS.overturning.wind_force_kN)} kN` });
+}
+$("verdicts").innerHTML = V.map((x) => `<div class="verdict"><span class="k">${x.k}</span><span class="v">${x.v}</span>` +
+  `<span class="pill ${x.cls}">${x.p}</span><span class="d">${x.d}</span></div>`).join("");
+
+// ---- stairs text and tables
+if (ST) {
+  const sup = { shell: 0, flight: 0, ground: 0 };
+  ST.steps.forEach((s) => sup[s.support]++);
+  const minW = Math.min(...ST.steps.map((s) => s.width_m));
+  const parapets = ST.steps.filter((s) => s.flags.includes("parapet")).length;
+  $("stairs-text").innerHTML =
+    `<p>The route search looked at every walkable patch of the sheet (slope under 60°, 2.10 m headroom, away from free rims) and at every straight printed flight that could link two of them. It found that <b>the shell alone never offers a continuous walkable slope</b> from the ground to the upper floor: the Neovius walls leave the ground almost vertically and the tubes between the storeys are too narrow for a 1.20 m stair with 2.10 m headroom.</p>` +
+    describeRoute(sup, minW, parapets) +
+    (ST.issues.length ? `<p class="warn">Open issues: ${ST.issues.map(esc).join("; ")}.</p>` : `<p>All checked rules are met.</p>`);
+  const minHead = 2.1;
+  const rows = [
+    ["Riser", "15–17 cm, constant", `${fmt(ST.riser_m * 100)} cm`, ST.riser_m >= 0.15 && ST.riser_m <= 0.17],
+    ["Tread", "≥ 30 cm", `${fmt(ST.tread_m * 100, 0)} cm`, ST.tread_m >= 0.3 - 1e-6],
+    ["2 risers + tread (Blondel)", "62–64 cm", `${fmt(ST.blondel_m * 100)} cm`, ST.blondel_m >= 0.619 && ST.blondel_m <= 0.641],
+    ["Risers per flight", "≤ 15", ST.flights.join(" + "), Math.max(...ST.flights) <= 15],
+    ["Landings", "≥ 1.20 m", `${ST.steps.filter((s) => s.kind === "landing").length} × 1.20 m`, true],
+    ["Clear width", "≥ 1.20 m (public)", `≥ ${fmt(minW, 2)} m`, minW >= 1.2 - 1e-6],
+    ["Headroom", "≥ 2.10 m", `≥ ${fmt(minHead, 2)} m (after openings)`, true],
+    ["Open sides", "parapet ≥ 1.00 m, handrail 0.90–1.00 m", `${parapets} treads`, true],
+  ];
+  $("rules").innerHTML = `<thead><tr><th>Rule</th><th>Required</th><th>Achieved</th><th></th></tr></thead><tbody>` +
+    rows.map(([a, b, c, ok]) => `<tr><td>${a}</td><td>${b}</td><td class="num">${c}</td><td class="${ok ? "ok" : "bad"}">${ok ? "✓" : "✗"}</td></tr>`).join("") + "</tbody>";
+  $("openings").innerHTML = `<thead><tr><th>Steps</th><th>Where (x, y, z m)</th><th class="num">Sheet removed</th></tr></thead><tbody>` +
+    (ST.openings.length ? ST.openings.map((o) => `<tr><td class="num">${o.steps[0]}–${o.steps[1]}</td><td class="num">${o.centre_m.map((c) => fmt(c, 1)).join(", ")}</td><td class="num">≈ ${fmt(o.area_m2)} m²</td></tr>`).join("")
+      : `<tr><td colspan="3">none</td></tr>`) + "</tbody>";
+  drawProfile();
+}
+
+
+function describeRoute(sup, minW, parapets) {
+  const first = ST.steps[0], last = ST.steps[ST.steps.length - 1];
+  const r0 = Math.hypot(first.xyz[0], first.xyz[1]);
+  const outside = r0 > 0.9 * cfg.cell_m[0] / 2;
+  const compass = (x, y) => (y < 0 ? "south" : "north") + "-" + (x < 0 ? "west" : "east");
+  const area = ST.openings.reduce((a, o) => a + o.area_m2, 0);
+  const onShell = sup.shell;
+  return `<p>The best line is ${sup.flight === ST.steps.length ? "a <b>printed stair on its own stringers for its whole length</b>" : "a stair partly fused onto the shell"}: ` +
+    `it starts ${outside ? `<b>outside</b>, ${fmt(r0, 1)} m ${compass(first.xyz[0], first.xyz[1])} of the tower axis` : "inside the lower chamber"}, ` +
+    `rises in flights of ${ST.flights.join(" + ")} risers with 1.20 m landings, and arrives on the upper floor at ${fmt(ST.floor_m, 2)} m` +
+    (area ? ` through <b>an opening of about ${fmt(area, 0)} m² cut in the shell</b>.` : ".") + ` ` +
+    `${ST.risers} risers of ${fmt(ST.riser_m * 100)} cm and treads of ${fmt(ST.tread_m * 100, 0)} cm (pitch ${fmt(ST.pitch_deg)}°), clear width at least ${fmt(minW, 2)} m; ` +
+    `${parapets} treads have an open side and need a 1.00 m parapet.</p>` +
+    (onShell === 0 ? `<p><b>No tread could be fused directly onto the sheet</b> in this geometry. To get steps that follow the surface, the climbing tubes must be flatter: their pitch is roughly atan(storey height / plan size), ${fmt(Math.atan(cfg.cell_m[2] / cfg.cell_m[0]) * 180 / Math.PI, 0)}° here. A cell about 0.6 times as tall as it is wide (for example 10 × 10 × 6 m) brings them near the 30° of a stair, and wider tubes make room for 2.10 m headroom.</p>` : "");
+}
+
+function drawProfile() {
+  const steps = ST.steps;
+  const sMax = Math.max(...steps.map((s) => s.s_m + s.tread_m)) + 0.5;
+  const zMax = ST.floor_m + 2.6;
+  const W = 1000, H = 340, ml = 46, mr = 16, mt = 26, mb = 34;
+  const X = (s) => ml + (s / sMax) * (W - ml - mr);
+  const Y = (z) => H - mb - (z / zMax) * (H - mt - mb);
+  const css = (n) => `var(${n})`;
+  const col = { flight: css("--stair"), shell: css("--accent"), ground: css("--muted") };
+  let g = "";
+  for (let z = 0; z <= zMax; z += 1) g += `<line x1="${ml}" x2="${W - mr}" y1="${Y(z)}" y2="${Y(z)}" stroke="var(--line)" stroke-width="1"/><text x="${ml - 8}" y="${Y(z) + 4}" text-anchor="end" font-size="11" fill="var(--muted)" font-family="IBM Plex Mono, monospace">${z} m</text>`;
+  for (let s = 0; s <= sMax; s += 1) g += `<text x="${X(s)}" y="${H - 12}" text-anchor="middle" font-size="11" fill="var(--muted)" font-family="IBM Plex Mono, monospace">${s}</text>`;
+  g += `<text x="${ml}" y="${mt - 2}" font-size="11" fill="var(--muted)">height above ground · horizontal axis: m along the stair</text>`;
+  // openings band
+  for (const o of ST.openings) {
+    const a = steps[o.steps[0] - 1], b = steps[o.steps[1] - 1];
+    g += `<rect x="${X(a.s_m)}" y="${mt}" width="${Math.max(2, X(b.s_m + b.tread_m) - X(a.s_m))}" height="${H - mt - mb}" fill="var(--bad)" opacity="0.08"/>`;
+  }
+  // treads + risers + headroom
+  let path = `M ${X(steps[0].s_m)} ${Y(0)}`;
+  for (const s of steps) {
+    path += ` L ${X(s.s_m)} ${Y(s.z_top_m)} L ${X(s.s_m + s.tread_m)} ${Y(s.z_top_m)}`;
+    g += `<line x1="${X(s.s_m)}" x2="${X(s.s_m + s.tread_m)}" y1="${Y(s.z_top_m)}" y2="${Y(s.z_top_m)}" stroke="${col[s.support]}" stroke-width="4"/>`;
+    if (s.kind === "landing") g += `<text x="${X(s.s_m + s.tread_m / 2)}" y="${Y(s.z_top_m) - 8}" text-anchor="middle" font-size="11" fill="var(--ink)">landing</text>`;
+  }
+  g = `<path d="${path}" fill="none" stroke="var(--ink)" stroke-width="1" opacity="0.5"/>` + g;
+  const hp = steps.map((s) => `${X(s.s_m)},${Y(s.z_top_m + 2.1)} ${X(s.s_m + s.tread_m)},${Y(s.z_top_m + 2.1)}`).join(" ");
+  g += `<polyline points="${hp}" fill="none" stroke="var(--muted)" stroke-dasharray="4 4" stroke-width="1"/>`;
+  const last = steps[steps.length - 1];
+  g += `<text x="${X(last.s_m + last.tread_m)}" y="${Y(last.z_top_m + 2.1) - 6}" text-anchor="end" font-size="11" fill="var(--muted)">2.10 m headroom</text>`;
+  g += `<text x="${X(last.s_m + last.tread_m)}" y="${Y(last.z_top_m) + 34}" text-anchor="end" font-size="11" fill="var(--ink)">upper floor ${fmt(ST.floor_m, 2)} m</text>`;
+  $("profile").innerHTML = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Stair profile: height against length along the stair">${g}</svg>`;
+}
+
+// ---- structure text and tables
+if (SS) {
+  const cases = SS.cases;
+  const names = Object.keys(cases).filter((k) => k !== "SLS");
+  $("structure-text").innerHTML =
+    `<p>The whole printed solid, stairs included, was modelled with ${SS.elements.toLocaleString("en-GB")} cubic finite elements of ${fmt(SS.voxel_m * 1000, 0)} mm (${(SS.unknowns / 1e6).toFixed(2)} million unknowns), fixed at the ground. ` +
+    `Self weight is ${fmt(SS.weight_kN, 0)} kN (${fmt(SS.weight_kN / 9.81, 1)} t).</p>` +
+    `<p><b>Will it stand?</b> ${SS.utilisation.p99 <= 1 ? "Yes as a shell: 99% of the material stays below its design strength under every load case" : "Not as drawn: more than 1% of the material is above its design strength"}. ` +
+    `Its service deflection is ${fmt(SS.max_displacement_mm)} mm against a limit of ${fmt(SS.displacement_limit_mm)} mm. ` +
+    (SS.overturning.ok ? `It is stable against wind overturning without anchors. `
+      : `Against wind it is <b>not stable on its own weight</b>: the factored overturning moment ${fmt(SS.overturning.M_overturning_kNm, 0)} kNm exceeds the restoring ${fmt(SS.overturning.M_restoring_kNm, 0)} kNm, so the ${R.structure ? "ground ring" : "base"} needs anchors or a ballasted foundation (a 12 m tower of ${fmt(SS.weight_kN / 9.81, 0)} t of polymer is light for its size). `) +
+    `The <b>assembly joints</b> ${jointsOver ? `fail at ${jointsOver} of ${joints.length} cut planes` : `all stay below a bolted joint's capacity (worst ${fmt(joints[0] ? joints[0].utilisation : 0, 2)})`}, because the shell works mostly in compression and shear. ` +
+    `The <b>stairwell opening</b> removes about ${fmt(ST ? ST.openings.reduce((a, o) => a + o.area_m2, 0) : 0)} m² of shell; its rim needs an edge beam. ` +
+    `Printed polymers are weak across their layers and creep under permanent load, so the design strengths below are deliberately low.</p>`;
+  $("cases").innerHTML = `<thead><tr><th>Case</th><th class="num">Tension</th><th class="num">Across layers</th><th class="num">Compression</th><th class="num">Util. 99.9%</th></tr></thead><tbody>` +
+    names.map((k) => { const c = cases[k]; return `<tr><td>${k}</td><td class="num">${fmt(c.max_principal_tension_MPa, 2)} MPa</td><td class="num">${fmt(c.max_interlayer_tension_MPa, 2)} MPa</td><td class="num">${fmt(c.max_compression_MPa, 2)} MPa</td><td class="num ${cls(c.utilisation_p99_9)}">${fmt(c.utilisation_p99_9, 2)}</td></tr>`; }).join("") +
+    `<tr><td>SLS</td><td colspan="3">max displacement</td><td class="num">${fmt(SS.max_displacement_mm)} mm</td></tr></tbody>`;
+  const ds = SS.design_strength_MPa, m = SS.material;
+  $("strengths").innerHTML = `<thead><tr><th>Check</th><th class="num">Characteristic</th><th class="num">Design</th></tr></thead><tbody>` +
+    `<tr><td>Tension along layers</td><td class="num">${fmt(m.f_t_inplane_MPa, 0)} MPa</td><td class="num">${fmt(ds.in_plane_tension, 1)} MPa</td></tr>` +
+    `<tr><td>Tension across layers</td><td class="num">${fmt(m.f_t_interlayer_MPa, 0)} MPa</td><td class="num">${fmt(ds.interlayer_tension, 1)} MPa</td></tr>` +
+    `<tr><td>Compression</td><td class="num">${fmt(m.f_c_MPa, 0)} MPa</td><td class="num">${fmt(ds.compression, 1)} MPa</td></tr>` +
+    `<tr><td>Joint, tension across the cut</td><td class="num">${fmt(m.joint_efficiency * 100, 0)}% of sheet</td><td class="num">${fmt(ds.joint_tension, 1)} MPa</td></tr>` +
+    `<tr><td>Local buckling (lowest 1%)</td><td class="num">–</td><td class="num">${SS.buckling_stress_MPa ? fmt(SS.buckling_stress_MPa.p1, 1) : "–"} MPa</td></tr>` +
+    `<tr><td colspan="3" class="muted">Design = characteristic × k<sub>mod</sub> ${m.k_mod} / γ<sub>M</sub> ${m.gamma_M}. E = ${fmt(m.E_MPa, 0)} MPa. Local buckling: curved shell 0.605·E·t/R × 0.2 knock-down, R from the Gaussian curvature (median ${fmt(SS.buckling_radius_m.median, 2)} m), or a flat plate panel where the surface is nearly flat, whichever is higher.</td></tr></tbody>`;
+  const fixes = {
+    "tension across print layers": "print this zone with the layers turned (another part orientation) or add a glass-fibre tape / steel tie across the layers",
+    "tension along layers": "thicken the sheet locally (ribs or a variable-thickness print) or add a steel edge tie",
+    "compression": "thicken the sheet locally",
+    "local buckling": "stiffen with printed ribs on the inside face or increase thickness; curvature is lowest here",
+  };
+  $("zones").innerHTML = zones.slice(0, 8).map((z, i) =>
+    `<li><b>${fmt(z.max_utilisation, 2)} × design</b>, governed by <b>${z.governing}</b>, around (${z.centre_m.map((c) => fmt(c, 1)).join(", ")}) m, ${z.elements} elements. ` +
+    `<span class="muted">${z.max_utilisation < 0.8 ? "Within capacity. If loads grow or the sheet gets thinner: " : "Fix: "}${fixes[z.governing] || "local reinforcement"}.</span></li>`).join("") || "<li>No zone above 0.8 × design strength.</li>";
+  $("joints").innerHTML = `<thead><tr><th>#</th><th>Cut plane</th><th class="num">Contact</th><th class="num">Tension</th><th class="num">Force</th><th>Case</th><th class="num">Util.</th></tr></thead><tbody>` +
+    joints.slice(0, 10).map((j, i) => `<tr><td class="num">J${i + 1}</td><td class="num">${j.axis} = ${fmt(j.at_m, 2)} m</td><td class="num">${fmt(j.contact_area_m2, 2)} m²</td><td class="num">${fmt(j.max_tension_MPa, 2)} MPa</td><td class="num">${fmt(j.tension_force_kN, 0)} kN</td><td>${j.case || "–"}</td><td class="num ${cls(j.utilisation)}">${fmt(j.utilisation, 2)}</td></tr>`).join("") + "</tbody>";
+}
+
+$("method-text").innerHTML = `
+<p><b>Stairs.</b> Rules from the Italian DM 236/1989 art. 8.1.10 and common European practice: riser 15–17 cm constant within a flight, tread ≥ 30 cm, 2R+G = 62–64 cm, ≤ 15 risers per flight, landings ≥ 1.20 m, width ≥ 1.20 m for public use, headroom ≥ 2.10 m, parapet ≥ 1.00 m on open sides. Check them against the local building code and fire rules before building.</p>
+<p><b>Structure.</b> Linear elastic voxel finite elements (8-node hexahedra, 40 mm) of the full solid, solved with algebraic multigrid. Loads in simplified Eurocode / NTC 2018 form: self weight, crowd ${R.structure ? fmt(R.structure.loads.live_kN_m2) : "4.0"} kN/m² on stairs and floors, snow ${R.structure ? fmt(R.structure.loads.snow_kN_m2) : "1.2"} kN/m² on up-facing areas, wind ${R.structure ? fmt(R.structure.loads.wind_kN_m2) : "0.8"} kN/m² as horizontal pressure on windward faces; partial factors 1.35 / 1.5.</p>
+<p><b>Limits.</b> This is a screening model. The sheet is only 2–3 elements thick, so bending in thin areas is under-estimated, and the voxel staircase makes stress peaks at sharp corners (the 99% values are more reliable than the maxima). Material is isotropic in stiffness, with the layer weakness taken into account only in strength. No creep, temperature or dynamic (footfall) analysis, no non-linear buckling. Joints are judged by the tension crossing each cut plane, not by a model of real connectors. A shell model (Karamba, SOFiSTiK, RFEM) and tests on printed coupons and joints are the next step.</p>`;
+
+// ===================================================================== 3D
+const stage = $("stage");
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.localClippingEnabled = true;
+stage.appendChild(renderer.domElement);
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(32, 1, 0.1, 500);
+const controls = new THREE.OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true;
+controls.maxPolarAngle = Math.PI * 0.5;
+scene.add(new THREE.HemisphereLight(0xffffff, 0x8f8a80, 0.6));
+const sun = new THREE.DirectionalLight(0xffffff, 0.75);
+scene.add(sun);
+const cssv = (n) => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+const colv = (n) => new THREE.Color(cssv(n));
+
+function b64(s) { const bin = atob(s); const u = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) u[i] = bin.charCodeAt(i); return u.buffer; }
+const toScene = (x, y, z) => [x, z, -y];
+function geom(pack) {
+  const q = new Uint16Array(b64(pack.pos));
+  const pos = new Float32Array(q.length);
+  for (let i = 0; i < q.length; i += 3) {
+    const p = toScene(DATA.lo[0] + q[i] / 65535 * DATA.size, DATA.lo[1] + q[i + 1] / 65535 * DATA.size, DATA.lo[2] + q[i + 2] / 65535 * DATA.size);
+    pos[i] = p[0]; pos[i + 1] = p[1]; pos[i + 2] = p[2];
+  }
+  const g = new THREE.BufferGeometry();
+  g.setAttribute("position", new THREE.BufferAttribute(pos, 3));
+  g.setIndex(new THREE.BufferAttribute(new Uint32Array(b64(pack.idx)), 1));
+  g.computeVertexNormals();
+  return g;
+}
+const cutPlane = new THREE.Plane(new THREE.Vector3(0, 0, -1), 1e6);
+const shellGeo = geom(DATA.shell);
+const uval = new Uint8Array(b64(DATA.shell.val));
+const colors = new Float32Array(uval.length * 3);
+shellGeo.setAttribute("color", new THREE.BufferAttribute(colors, 3));
+const shellMat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.8, side: THREE.DoubleSide, clippingPlanes: [cutPlane] });
+const shell = new THREE.Mesh(shellGeo, shellMat);
+scene.add(shell);
+let stairs = null;
+const stairMat = new THREE.MeshStandardMaterial({ roughness: 0.7, clippingPlanes: [cutPlane] });
+if (DATA.stairs) { stairs = new THREE.Mesh(geom(DATA.stairs), stairMat); scene.add(stairs); }
+const groundMat = new THREE.MeshStandardMaterial({ roughness: 1 });
+const ground = new THREE.Mesh(new THREE.CircleGeometry(80, 64), groundMat);
+ground.rotation.x = -Math.PI / 2; ground.position.y = -0.005;
+scene.add(ground);
+
+let mode = "util";
+function paint() {
+  const stops = [["--u0", 0], ["--u1", 0.45], ["--u2", 0.8], ["--u3", 1.0], ["--u4", 1.5]].map(([n, v]) => [colv(n), v]);
+  const plain = colv("--skin");
+  const c = new THREE.Color();
+  for (let i = 0; i < uval.length; i++) {
+    if (mode === "plain") c.copy(plain);
+    else {
+      const u = uval[i] / 255 * 1.5;
+      let k = 0; while (k < stops.length - 2 && u > stops[k + 1][1]) k++;
+      const t = Math.min(1, Math.max(0, (u - stops[k][1]) / (stops[k + 1][1] - stops[k][1])));
+      c.copy(stops[k][0]).lerp(stops[k + 1][0], t);
+    }
+    colors[3 * i] = c.r; colors[3 * i + 1] = c.g; colors[3 * i + 2] = c.b;
+  }
+  shellGeo.attributes.color.needsUpdate = true;
+  stairMat.color = colv("--stair");
+  scene.background = colv("--scene");
+  groundMat.color = colv("--ground");
+}
+paint();
+window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", paint);
+new MutationObserver(paint).observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
+
+// markers
+const markers = [];
+function addMarker(xyz, label, kind) {
+  const el = document.createElement("div");
+  el.className = "marker" + (kind === "joint" ? " joint" : "");
+  el.textContent = label;
+  stage.appendChild(el);
+  markers.push({ el, p: new THREE.Vector3(...toScene(...xyz)), kind });
+}
+if (SS) {
+  zones.slice(0, 8).forEach((z, i) => addMarker(z.centre_m, String(i + 1), "zone"));
+  joints.slice(0, 5).forEach((j, i) => {
+    const other = [0, 1, 2].filter((a) => a !== "xyz".indexOf(j.axis));
+    const p = [0, 0, 0]; p["xyz".indexOf(j.axis)] = j.at_m; p[other[0]] = j.centre_m[0]; p[other[1]] = j.centre_m[1];
+    addMarker(p, "J" + (i + 1), "joint");
+  });
+}
+const show = { zone: true, joint: true };
+function placeMarkers() {
+  const w = stage.clientWidth, h = stage.clientHeight;
+  for (const m of markers) {
+    const v = m.p.clone().project(camera);
+    const vis = show[m.kind] && v.z < 1 && Math.abs(v.x) < 1.05 && Math.abs(v.y) < 1.05;
+    m.el.hidden = !vis;
+    if (vis) { m.el.style.left = `${(v.x + 1) / 2 * w}px`; m.el.style.top = `${(1 - v.y) / 2 * h}px`; }
+  }
+}
+
+shellGeo.computeBoundingBox();
+const bb = shellGeo.boundingBox, ctr = bb.getCenter(new THREE.Vector3()), sz = bb.getSize(new THREE.Vector3());
+const d = Math.max(sz.x, sz.y, sz.z) * 2.4 + 4;
+controls.target.set(ctr.x, sz.y * 0.45, ctr.z);
+camera.position.set(ctr.x + d * 0.62, sz.y * 0.55 + d * 0.2, ctr.z + d * 0.72);
+sun.position.set(ctr.x + 20, 40, ctr.z + 25);
+function resize() { const w = stage.clientWidth, h = stage.clientHeight; renderer.setSize(w, h, false); camera.aspect = w / Math.max(1, h); camera.updateProjectionMatrix(); }
+new ResizeObserver(resize).observe(stage);
+resize();
+(function loop() { controls.update(); renderer.render(scene, camera); placeMarkers(); requestAnimationFrame(loop); })();
+
+function press(btn, other) { btn.setAttribute("aria-pressed", "true"); other.setAttribute("aria-pressed", "false"); }
+$("c-util").onclick = () => { mode = "util"; press($("c-util"), $("c-plain")); $("ramp").hidden = false; paint(); };
+$("c-plain").onclick = () => { mode = "plain"; press($("c-plain"), $("c-util")); $("ramp").hidden = true; paint(); };
+$("t-stairs").onchange = (e) => { if (stairs) stairs.visible = e.target.checked; };
+$("t-zones").onchange = (e) => { show.zone = e.target.checked; };
+$("t-joints").onchange = (e) => { show.joint = e.target.checked; };
+$("cut").oninput = (e) => {
+  const v = +e.target.value;
+  cutPlane.constant = v ? bb.max.z - (bb.max.z - bb.min.z) * v / 100 : 1e6;
+};
+</script>
