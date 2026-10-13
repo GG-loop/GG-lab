@@ -608,6 +608,130 @@ def stair_solids(F, axes, rows, rules=STAIR_RULES, flight=FLIGHT, width=1.2, tie
     return F
 
 
+
+# =========================================================================== #
+# Climbing the terraced sculpture
+# =========================================================================== #
+
+CLIMB_CLASSES = [
+    # name, max surface slope (deg), what it is for
+    ("seat", 12.0, "seats and landings: ledges deeper than 0.85 m"),
+    ("steps", 32.0, "comfortable steps: treads 0.29-0.85 m"),
+    ("steep steps", 45.0, "steep steps: treads 0.18-0.29 m, a hand on the next ledge"),
+    ("ledges", 58.0, "climbing ledges: treads 0.11-0.18 m, hands and feet"),
+]
+
+
+def slope_class(slope_deg):
+    c = np.full(slope_deg.shape, len(CLIMB_CLASSES), int)   # last = too steep / smooth
+    for k in range(len(CLIMB_CLASSES) - 1, -1, -1):
+        c[slope_deg < CLIMB_CLASSES[k][1]] = k
+    return c
+
+
+def ledge_classes(mesh, mesh0, radius=0.3):
+    """Ledge class for every vertex of the terraced mesh, from the slope of the
+    untreaded up-facing skin under it (averaged over a small neighbourhood so the
+    classes form clean bands). Undersides and anything far from that skin are smooth."""
+    from scipy.spatial import cKDTree
+    n0 = mesh0.vertex_normals
+    up = np.where(n0[:, 2] > 0.05)[0]
+    slope0 = np.degrees(np.arccos(np.clip(n0[up, 2], -1, 1)))
+    tree = cKDTree(mesh0.vertices[up])
+    d, idx = tree.query(mesh.vertices, k=24, distance_upper_bound=radius)
+    valid = np.isfinite(d)
+    sl = np.where(valid, slope0[np.minimum(idx, len(up) - 1)], 0.0)
+    cnt = valid.sum(1)
+    mean = np.where(cnt > 0, sl.sum(1) / np.maximum(cnt, 1), 90.0)
+    cls = slope_class(mean)
+    cls[(cnt == 0) | (mesh.vertex_normals[:, 2] < -0.2)] = len(CLIMB_CLASSES)
+    return cls.astype(np.uint8)
+
+
+def climb(cfg, F, axes, mesh, riser, headroom_min=1.9, rim_keep=0.3, log=print):
+    """Best climbing line over the terraced skin, from the ground to the summit.
+
+    Works on the untreaded sheet: wherever its up-facing skin is below 58 deg the
+    terraces turn it into ledges, and the tread depth follows from the slope
+    (tread = riser / tan(slope))."""
+    v = mesh.vertices
+    n = mesh.vertex_normals
+    slope = np.degrees(np.arccos(np.clip(n[:, 2], -1, 1)))
+    cls = slope_class(slope)
+    up = cls < len(CLIMB_CLASSES)
+    room = np.zeros(len(v))
+    room[up] = headroom(F, axes, v[up] + n[up] * 0.02)
+    xw, yw, zw = op.warp(cfg, v[:, 0], v[:, 1], v[:, 2])
+    env = op.envelope_sdf(cfg, xw, yw, zw)
+    ok = up & (room >= headroom_min) & (env < -rim_keep)
+
+    # areas per class (whole sculpture, up-facing skin)
+    fcls = slope_class(np.degrees(np.arccos(np.clip(mesh.face_normals[:, 2], -1, 1))))
+    areas = {CLIMB_CLASSES[k][0]: round(float(mesh.area_faces[fcls == k].sum()), 1) for k in range(len(CLIMB_CLASSES))}
+
+    e = mesh.edges_unique
+    e = e[ok[e[:, 0]] & ok[e[:, 1]]]
+    L = np.linalg.norm(v[e[:, 1]] - v[e[:, 0]], axis=1)
+    weight = np.array([1.0, 1.0, 1.8, 3.5])[np.maximum(cls[e[:, 0]], cls[e[:, 1]])]
+    G = sparse.coo_matrix((np.concatenate([L * weight] * 2),
+                           (np.concatenate([e[:, 0], e[:, 1]]), np.concatenate([e[:, 1], e[:, 0]]))),
+                          shape=(len(v) + 1, len(v) + 1)).tocsr()
+    src = np.where(ok & (v[:, 2] < riser + 0.1))[0]
+    S = len(v)
+    G = G.tolil(); G[S, src] = 1e-6; G = G.tocsr()
+    dist, pred = dijkstra(G, directed=True, indices=S, return_predecessors=True)
+    reach = np.isfinite(dist[:S]) & ok
+    if not reach.any():
+        return None
+    summit = np.where(reach)[0][np.argmax(v[reach, 2])]
+    path = []
+    k = summit
+    while k != S and k >= 0:
+        path.append(int(k)); k = pred[k]
+    path = path[::-1]
+    pts = v[path]
+    seg = np.linalg.norm(np.diff(pts, axis=0), axis=1)
+    s = np.concatenate([[0], np.cumsum(seg)])
+    pc = cls[path]
+    comp = {CLIMB_CLASSES[k][0]: round(float(seg[np.minimum(pc[:-1], pc[1:]) == k].sum()), 2)
+            for k in range(len(CLIMB_CLASSES))}
+    # fall height beside the line: drop to the next surface (or the ground) 0.6 m to either side
+    drops = []
+    for i in range(0, len(pts), max(1, len(pts) // 120)):
+        p = pts[i]
+        t = pts[min(i + 3, len(pts) - 1)] - pts[max(i - 3, 0)]
+        hn = math.hypot(t[0], t[1]) + 1e-9
+        px, py = -t[1] / hn, t[0] / hn
+        worst = 0.0
+        for sg in (1, -1):
+            qx, qy = p[0] + sg * 0.6 * px, p[1] + sg * 0.6 * py
+            ix, iy, iz = grid_index(axes, np.array([qx]), np.array([qy]), np.array([p[2]]))
+            col = F[ix[0], iy[0], :iz[0] + 1] <= 0
+            below = np.where(col)[0]
+            z_below = axes[2][below[-1]] if len(below) else 0.0
+            worst = max(worst, p[2] - max(z_below, 0.0))
+        drops.append((float(s[i]), float(p[2]), worst))
+    drops = np.array(drops)
+    guard = drops[:, 2] > 1.0
+    log(f"climb: summit {v[summit, 2]:.2f} m reached over {s[-1]:.1f} m, {int(round(v[summit, 2] / riser))} ledges; "
+        f"{guard.mean() * 100:.0f}% of the line has a drop over 1 m beside it")
+    return {
+        "riser_m": riser,
+        "summit_m": round(float(v[summit, 2]), 2),
+        "top_of_sculpture_m": round(float(v[:, 2].max()), 2),
+        "length_m": round(float(s[-1]), 2),
+        "ledges_climbed": int(round(v[summit, 2] / riser)),
+        "composition_m": comp,
+        "areas_m2": areas,
+        "reachable_share": round(float(reach.sum() / max(ok.sum(), 1)), 3),
+        "max_drop_m": round(float(drops[:, 2].max()), 2),
+        "guarded_share": round(float(guard.mean()), 3),
+        "classes": [{"name": c[0], "max_slope_deg": c[1], "use": c[2]} for c in CLIMB_CLASSES],
+        "route": np.round(pts, 3).tolist(),
+        "route_class": pc.tolist(),
+        "drops": np.round(drops, 2).tolist(),
+    }
+
 # =========================================================================== #
 # Structure: voxel finite elements
 # =========================================================================== #
@@ -655,7 +779,7 @@ def gaussian_curvature_radius(f, h):
     return 1 / np.sqrt(np.abs(K) + 1e-6)
 
 
-def structure(cfg, F, axes, extras, rows, material=MATERIAL, loads=LOADS, log=print):
+def structure(cfg, F, axes, extras, rows, material=MATERIAL, loads=LOADS, log=print, crowd_everywhere=False):
     from pyamg import smoothed_aggregation_solver
 
     h = float(axes[0][1] - axes[0][0])
@@ -734,6 +858,8 @@ def structure(cfg, F, axes, extras, rows, material=MATERIAL, loads=LOADS, log=pr
         fl = op.chamber_clearance(F, axes, cfg)[",".join(map(str, p))]["floor_m"]
         if fl > 0.05:
             walk |= skin & (np.hypot(xe - c[0], ye - c[1]) < 2.2) & (np.abs(zc - fl) < 0.6)
+    if crowd_everywhere:              # a climbable sculpture: people anywhere on its up-facing skin
+        walk = skin.copy()
     roof = skin & ~walk
     # wind: windward faces, +x direction, solid with empty voxel on the -x side
     wind_face = np.zeros_like(solid)
@@ -793,7 +919,11 @@ def structure(cfg, F, axes, extras, rows, material=MATERIAL, loads=LOADS, log=pr
         sig = eps @ D.T / 1e6                  # MPa
         if name == "SLS":
             disp = np.linalg.norm(u.reshape(-1, 3), axis=1)
+            kmax = int(np.argmax(disp))
             results[name] = {"max_displacement_mm": round(float(disp.max() * 1e3), 1),
+                             "at_m": [round(float(axes[0][0] - h / 2 + node_ijk[kmax, 0] * h), 2),
+                                      round(float(axes[1][0] - h / 2 + node_ijk[kmax, 1] * h), 2),
+                                      round(float(z_node[kmax]), 2)],
                              "node_disp": disp}
             continue
         S3 = np.zeros((ne, 3, 3))
@@ -891,13 +1021,14 @@ def structure(cfg, F, axes, extras, rows, material=MATERIAL, loads=LOADS, log=pr
     m_rest = 0.9 * weight * (x_lee - x_g)
 
     sls = results["SLS"]
-    span = max(cfg["cell_m"][0], cfg["cell_m"][1])
+    span = max(cfg["cell_m"][0], cfg["cell_m"][1])   # limit span/250 on the cell size
     out = {
         "elements": ne, "unknowns": int(len(free)), "voxel_m": h,
         "material": material, "loads": loads,
         "total_load_kN": total_load,
         "cases": {k: {kk: vv for kk, vv in v.items() if kk not in ("sigma", "node_disp")} for k, v in results.items()},
         "max_displacement_mm": sls["max_displacement_mm"],
+        "max_displacement_at_m": sls["at_m"],
         "displacement_limit_mm": round(span / 250 * 1e3, 1),
         "design_strength_MPa": {"in_plane_tension": round(f_in, 2), "interlayer_tension": round(f_z, 2),
                                 "compression": round(f_c, 2), "joint_tension": round(f_joint, 2)},
@@ -931,14 +1062,64 @@ def vertex_values(mesh, axes, eidx, values, shape):
     return grid[ix, iy, iz]
 
 
+
+def main_art(args):
+    """Climb, mass and structure of the terraced sculpture."""
+    cfg = merge(op.DEFAULT_CONFIG, op.ART)
+    if args.config:
+        cfg = merge(cfg, json.loads(Path(args.config).read_text()))
+    cfg = merge(cfg, {"printer": {"density_kg_m3": MATERIAL["density_kg_m3"]}})
+    out = Path(args.out if args.out != str(Path(__file__).parent / "out_analysis")
+               else Path(__file__).parent / "out_sculpture")
+    out.mkdir(parents=True, exist_ok=True)
+    R = cfg["terraces"]["riser_m"]
+    log = lambda m: print(m, flush=True)
+
+    log("field (untreaded sheet) ...")
+    plain = merge(cfg, {"terraces": {"enabled": False}})
+    F0, axes = op.field(plain)
+    mesh0 = op.to_mesh(F0, axes, cfg["voxel_m"])
+    report = {"config": cfg, "mode": "sculpture"}
+    report["climb"] = climb(cfg, F0, axes, mesh0, R, log=log)
+
+    log("field (terraced) ...")
+    F, axes, extras = op.field(cfg, extras=True)
+    mesh = op.to_mesh(F, axes, cfg["voxel_m"])
+    mesh.export(out / "sculpture.stl")
+    dens = MATERIAL["density_kg_m3"]
+    v_terr = float(mesh.volume - mesh0.volume)
+    report["mesh"] = {"watertight": bool(mesh.is_watertight), "volume_m3": round(float(mesh.volume), 3),
+                      "sheet_volume_m3": round(float(mesh0.volume), 3), "ledge_volume_m3": round(v_terr, 3),
+                      "mass_kg": round(float(mesh.volume) * dens),
+                      "mass_hollow_ledges_kg": round((float(mesh0.volume) + 0.3 * v_terr) * dens),
+                      "bounding_box_m": (mesh.bounds[1] - mesh.bounds[0]).round(2).tolist()}
+    parts, grid = op.segments(F, axes, cfg)
+    report["print"] = {"parts": len(parts), "grid": grid,
+                       "heaviest_kg": round(max(m.volume for _, m in parts) * dens),
+                       "build_volume_m": cfg["printer"]["build_volume_m"]}
+    log(f"mesh: {report['mesh']}, {len(parts)} print parts")
+    if not args.no_fe:
+        st, fo = structure(cfg, F, axes, extras, [], log=log, crowd_everywhere=True)
+        report["structure"] = st
+        np.save(out / "vertex_utilisation.npy", vertex_values(mesh, axes, fo["eidx"], fo["util"], F.shape).astype(np.float32))
+    np.save(out / "vertex_class.npy", ledge_classes(mesh, mesh0))
+    (out / "report.json").write_text(json.dumps(report, indent=1, default=float))
+    if "structure" in report:
+        print(json.dumps({k: v for k, v in report["structure"].items()
+                          if k in ("utilisation", "max_displacement_mm", "overturning", "weight_kN")}, default=float))
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("-c", "--config", help="organic_pavilion config (default: two-storey tower)")
     ap.add_argument("--target", default=None, help="pod to climb to, e.g. 0,0,1 (default: highest pod)")
     ap.add_argument("--no-fe", action="store_true")
+    ap.add_argument("--art", action="store_true", help="the climbable terraced gyroid sculpture")
     ap.add_argument("--out", default=str(Path(__file__).parent / "out_analysis"))
     args = ap.parse_args()
 
+    if args.art:
+        return main_art(args)
     cfg = merge(op.DEFAULT_CONFIG, TOWER)
     if args.config:
         cfg = merge(cfg, json.loads(Path(args.config).read_text()))

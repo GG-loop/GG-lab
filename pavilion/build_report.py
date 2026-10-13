@@ -7,6 +7,7 @@ the printed stairs, utilisation colours, critical zones and the worst joints)
 next to the stair compliance and the structural results.
 
     python analysis.py && python build_report.py
+    python analysis.py --art && python build_report.py --sculpture   # the climbable sculpture
 """
 
 import base64
@@ -37,7 +38,53 @@ def decimate(mesh, faces):
         return mesh
 
 
+def main_sculpture(src=HERE / "out_sculpture"):
+    report = json.loads((src / "report.json").read_text())
+    mesh = trimesh.load(src / "sculpture.stl")
+    small = decimate(mesh, 260000)
+    _, nearest = cKDTree(mesh.vertices).query(small.vertices)
+    util = np.load(src / "vertex_utilisation.npy")[nearest] if (src / "vertex_utilisation.npy").exists() \
+        else np.zeros(len(small.vertices))
+    cls = np.load(src / "vertex_class.npy")[nearest]
+    if "--reclassify" in __import__("sys").argv:
+        # recompute the ledge classes without rerunning the structural model
+        import analysis as an
+        import organic_pavilion as op
+        from pavilion import merge
+        cfg = report["config"]
+        F0, axes = op.field(merge(cfg, {"terraces": {"enabled": False}}))
+        cls = an.ledge_classes(small, op.to_mesh(F0, axes, cfg["voxel_m"]))
+    lo = mesh.bounds[0]
+    size = float((mesh.bounds[1] - mesh.bounds[0]).max())
+    shell = pack(small, lo, size, np.clip(np.round(util / 1.5 * 255), 0, 255))
+    shell["cls"] = base64.b64encode(cls.astype("<u1").tobytes()).decode()
+    data = {"lo": lo.round(4).tolist(), "size": size, "shell": shell}
+    keep = {k: report[k] for k in ("climb", "mesh", "print", "structure") if k in report}
+    keep["config"] = {k: report["config"][k] for k in ("surface", "cell_m", "chamber_centre_m", "sheet", "organic",
+                                                        "printer", "terraces")}
+    data["report"] = keep
+    variants = []
+    for name, d in [("as drawn", src), ("thicker sheet", HERE / "out_sculpture_thick"),
+                    ("edge beams", HERE / "out_sculpture_rim")]:
+        f = d / "report.json"
+        if f.exists():
+            r = json.loads(f.read_text())
+            st = r.get("structure", {})
+            variants.append({"name": name, "sheet": r["config"]["sheet"], "mass_kg": r["mesh"]["mass_kg"],
+                             "mass_hollow_ledges_kg": r["mesh"]["mass_hollow_ledges_kg"],
+                             "disp_mm": st.get("max_displacement_mm"), "limit_mm": st.get("displacement_limit_mm"),
+                             "util_max": st.get("utilisation", {}).get("max")})
+    keep["variants"] = variants
+    html = (HERE / "viewer" / "sculpture_template.html").read_text()
+    html = html.replace("/*__DATA__*/null", json.dumps(data, separators=(",", ":"), default=float))
+    (HERE / "viewer" / "sculpture.html").write_text(html)
+    print(f"wrote viewer/sculpture.html ({len(html) / 1e6:.1f} MB), {len(small.faces)} tris")
+
+
 def main():
+    import sys
+    if "--sculpture" in sys.argv:
+        return main_sculpture()
     report = json.loads((SRC / "report.json").read_text())
     shell = trimesh.load(SRC / "pavilion_with_stairs.stl")
     util = np.load(SRC / "vertex_utilisation.npy") if (SRC / "vertex_utilisation.npy").exists() else None

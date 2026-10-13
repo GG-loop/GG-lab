@@ -46,6 +46,17 @@ from pavilion import tpms, merge
 
 MIN_EXTENT_M = 6.0
 
+# The climbable gyroid sculpture: one twisted gyroid cell whose up-facing skin is
+# split into contour ledges (seats, steps, narrow ledges).
+ART = {
+    "surface": "gyroid",
+    "cell_m": [8.0, 8.0, 8.0],
+    "chamber_centre_m": 3.0,
+    "envelope": {"radius_m": [4.8, 4.8, 4.4], "plan_exponent": 1.6},
+    "organic": {"twist_deg": 90.0},
+    "terraces": {"enabled": True, "riser_m": 0.18, "max_slope_deg": 58.0, "start_m": 0.0, "rim_keep_m": 0.30},
+}
+
 DEFAULT_CONFIG = {
     "surface": "neovius",               # neovius | schwarz_p | gyroid | diamond
     "cell_m": [7.2, 7.2, 10.0],         # one period in x, y, z (stretched upwards)
@@ -273,9 +284,49 @@ def field(cfg, extras=False):
     F = smax(dist - t / 2, env, cfg["envelope"]["rim_round_m"])
     F = np.maximum(F, -Z)                                # flat cut at the ground only
     F = np.maximum(F, -tunnel_floor_sdf(cfg, X, Y, Z))   # walk-through floor between pods
+    if cfg.get("terraces", {}).get("enabled"):
+        F = terrace(F, axes, cfg["terraces"], env)
+        F = np.maximum(F, -Z)
     if extras:
         return F, axes, {"f": f, "env": env, "thickness": t}
     return F, axes
+
+
+def terrace(F, axes, t, env=None):
+    """Split the up-facing skin of the sheet into horizontal ledges.
+
+    Every column whose top surface faces upwards (slope below max_slope_deg) is
+    built up to the next multiple of the riser height, so the treads follow the
+    contour lines of the surface: deep seats where it is shallow, steps where it
+    climbs, narrow ledges where it is steep. Steeper parts stay smooth.
+    """
+    h = float(axes[0][1] - axes[0][0])
+    R = t["riser_m"]
+    zs = axes[2]
+    solid = F <= 0
+    top = np.zeros_like(solid)
+    top[:, :, :-1] = solid[:, :, :-1] & ~solid[:, :, 1:]
+    gx, gy, gz = np.gradient(F, h)
+    nz = gz / np.maximum(np.sqrt(gx * gx + gy * gy + gz * gz), 1e-9)
+    del gx, gy, gz
+    # top voxels whose surface normal (the gradient, pointing out of the material) faces up enough
+    sel = top & (nz > math.cos(math.radians(t["max_slope_deg"])))
+    if env is not None:
+        sel &= env < -t.get("rim_keep_m", 0.12)        # free rims stay smooth lips
+    i, j, k = np.nonzero(sel)
+    f0, f1 = F[i, j, k], F[i, j, k + 1]
+    ztop = zs[k] + f0 / (f0 - f1) * h            # exact height of the skin in this column
+    zq = np.ceil((ztop - 0.01) / R) * R           # the ledge level just above it
+    zq = np.where(zq < t.get("start_m", 0.0) + 1e-6, ztop, zq)
+    F = F.copy()
+    for m in range(1, int(math.ceil(R / h)) + 2):
+        kk = k + m
+        ok = kk < F.shape[2]
+        z = zs[np.minimum(kk, F.shape[2] - 1)]
+        fill = ok & (z <= zq + h) & (zq > ztop + 1e-4)
+        ii, jj, kk2 = i[fill], j[fill], kk[fill]
+        F[ii, jj, kk2] = np.minimum(F[ii, jj, kk2], (z[fill] - zq[fill]).astype(F.dtype))
+    return F
 
 
 def to_mesh(F, axes, h):
@@ -465,9 +516,10 @@ def main():
     ap.add_argument("--pods", nargs="+", help="cells as i,j or i,j,level (e.g. 0,0 1,0 0,0,1)")
     ap.add_argument("--surface", choices=["neovius", "schwarz_p", "gyroid", "diamond"])
     ap.add_argument("--no-parts", action="store_true", help="skip print segmentation")
+    ap.add_argument("--art", action="store_true", help="the climbable terraced gyroid sculpture")
     ap.add_argument("--out")
     args = ap.parse_args()
-    cfg = DEFAULT_CONFIG
+    cfg = merge(DEFAULT_CONFIG, ART) if args.art else DEFAULT_CONFIG
     if args.config:
         cfg = merge(cfg, json.loads(Path(args.config).read_text()))
     if args.pods:

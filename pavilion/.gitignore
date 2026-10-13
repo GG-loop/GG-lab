@@ -7,3 +7,5 @@ out_organic/*
 !out_organic/manifest.json
 out_analysis/*
 !out_analysis/report.json
+out_sculpture*/*
+!out_sculpture*/report.json

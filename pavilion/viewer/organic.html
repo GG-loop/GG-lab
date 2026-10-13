@@ -112,6 +112,7 @@ pre.cfg { margin: 0; padding: 10px; border-radius: 6px; border: 1px solid var(--
         <button type="button" data-p="tower" aria-pressed="false">Tower</button>
         <button type="button" data-p="trio" aria-pressed="false">Trio</button>
         <button type="button" data-p="stepped" aria-pressed="false">Stepped</button>
+        <button type="button" data-p="sculpture" aria-pressed="false">Climbable sculpture</button>
       </div>
     </section>
 
@@ -148,6 +149,7 @@ pre.cfg { margin: 0; padding: 10px; border-radius: 6px; border: 1px solid var(--
         <label class="toggle"><input type="checkbox" id="layers" checked> Print layers</label>
         <label class="toggle"><input type="checkbox" id="person" checked> People for scale</label>
         <label class="toggle"><input type="checkbox" id="thick" checked> Real sheet thickness</label>
+        <label class="toggle"><input type="checkbox" id="terr"> Ledges (18 cm)</label>
       </div>
       <label class="slider"><span>Section cut</span><input type="range" id="cut" min="0" max="100" value="0"><output id="cut-o"></output></label>
       <p class="note"><span class="swatch" style="background:var(--skin)"></span>outer labyrinth <span class="swatch" style="background:var(--core);margin-left:10px"></span>inner labyrinth (the rooms). Layer lines are drawn 4× their real 12 mm pitch.</p>
@@ -387,6 +389,7 @@ function workerMain() {
     const used = new Int32Array(nv).fill(-1);
     const pos = [], nrm = [], ind = [], thk = [];
     let area = 0, mass = 0;
+    const ledge = [0, 0, 0, 0];
     const s = cfg.sheet, dens = cfg.printer.density_kg_m3;
     const bmin = [1e9, 1e9, 1e9], bmax = [-1e9, -1e9, -1e9];
     const bv = cfg.printer.build_volume_m, partSet = new Set();
@@ -410,6 +413,10 @@ function workerMain() {
       const g = [0, 1, 2].map((d) => V[a * 8 + 3 + d] + V[b * 8 + 3 + d] + V[c * 8 + 3 + d]);
       if (nn[0] * g[0] + nn[1] * g[1] + nn[2] * g[2] < 0) { const tt = b; b = c; c = tt; }
       area += ar;
+      // ledge class from the slope of the up-facing side (generator coordinates: z up)
+      const nzAbs = Math.abs(nn[2]) / (2 * ar);
+      const sl = Math.acos(Math.min(1, nzAbs)) * 180 / Math.PI;
+      if (sl < 58) ledge[sl < 12 ? 0 : sl < 32 ? 1 : sl < 45 ? 2 : 3] += ar;
       const zm = (A[2] + B[2] + Cv[2]) / 3, em = (V[a * 8 + 7] + V[b * 8 + 7] + V[c * 8 + 7]) / 3;
       const th = s.base_m + (s.top_m - s.base_m) * Math.min(1, Math.max(0, zm / S.H)) + s.rim_extra_m * Math.exp(-Math.pow(em / 0.35, 2));
       mass += ar * th * dens;
@@ -429,7 +436,7 @@ function workerMain() {
     return {
       pos: new Float32Array(pos), nrm: new Float32Array(nrm), ind: new Uint32Array(ind), thk: new Float32Array(thk),
       bbox: [bmax[0] - bmin[0], bmax[1] - bmin[1], bmax[2] - bmin[2]], bmin, bmax,
-      area, mass, parts: partSet.size, chambers, voxel: h, ms: performance.now() - t0,
+      area, mass, parts: partSet.size, chambers, voxel: h, ms: performance.now() - t0, ledge,
     };
   }
 
@@ -449,10 +456,13 @@ const PRESETS = {
   tower: [[0, 0, 0], [0, 0, 1]],
   trio: [[0, 0, 0], [1, 0, 0], [1, 1, 0]],
   stepped: [[0, 0, 0], [1, 1, 0], [1, 1, 1]],
+  sculpture: [[0, 0, 0]],
 };
+// the climbable gyroid: one cell, twisted a quarter turn, ledges on every gentle up-facing slope
+const SCULPTURE = { surface: "gyroid", twist: 90, lxy: 8, lz: 8, zc: 3.0, open: 1.09, pull: 1.6, terraces: true };
 const P = {
   surface: "neovius", preset: "single", twist: 28, taper: 0.10, sway: 0.35, seed: 7,
-  lxy: 7.2, lz: 10, zc: 1.3, open: 1, pull: 1.15, layers: true, person: true, cut: 0, thick: true,
+  lxy: 7.2, lz: 10, zc: 1.3, open: 1, pull: 1.15, layers: true, person: true, cut: 0, thick: true, terraces: false,
 };
 function config() {
   const k = P.lxy / 7.2, kz = P.lz / 10;
@@ -469,6 +479,7 @@ function config() {
     organic: { twist_deg: P.twist, taper: P.taper, sway_m: P.sway, seed: P.seed },
     sheet: { base_m: 0.10, top_m: 0.06, rim_extra_m: 0.05 },
     printer: { build_volume_m: [2.0, 2.0, 1.5], layer_m: 0.012, material: "rPETG", density_kg_m3: 1270 },
+    terraces: { enabled: !!P.terraces, riser_m: 0.18, max_slope_deg: 58, start_m: 0, rim_keep_m: 0.3 },
   };
 }
 function r2(x) { return Math.round(x * 100) / 100; }
@@ -504,16 +515,17 @@ ground.receiveShadow = true;
 scene.add(ground);
 
 const cutPlane = new THREE.Plane(new THREE.Vector3(0, 0, -1), 1e6);
-const U = { uSkin: { value: new THREE.Color() }, uCore: { value: new THREE.Color() }, uLayer: { value: 0.048 }, uLayersOn: { value: 1 }, uThick: { value: 1 } };
+const U = { uSkin: { value: new THREE.Color() }, uCore: { value: new THREE.Color() }, uLayer: { value: 0.048 }, uLayersOn: { value: 1 }, uThick: { value: 1 }, uTerr: { value: 0 }, uRiser: { value: 0.18 } };
 const mat = new THREE.MeshStandardMaterial({ side: THREE.DoubleSide, roughness: 0.78, metalness: 0, clippingPlanes: [cutPlane] });
 mat.extensions = { derivatives: true };
 mat.onBeforeCompile = (sh) => {
   Object.assign(sh.uniforms, U);
   sh.vertexShader = sh.vertexShader
-    .replace("#include <common>", "#include <common>\nvarying vec3 vWorldP;\nattribute float side;\nvarying float vSide;")
+    .replace("#include <common>", "#include <common>\nvarying vec3 vWorldP;\nattribute float side;\nvarying float vSide;\nvarying vec3 vWorldN;")
+    .replace("#include <defaultnormal_vertex>", "#include <defaultnormal_vertex>\nvWorldN = normalize(mat3(modelMatrix) * objectNormal);")
     .replace("#include <project_vertex>", "#include <project_vertex>\nvWorldP = (modelMatrix * vec4(transformed, 1.0)).xyz;\nvSide = side;");
   sh.fragmentShader = sh.fragmentShader
-    .replace("#include <common>", "#include <common>\nvarying vec3 vWorldP;\nvarying float vSide;\nuniform float uThick;\nuniform vec3 uSkin;\nuniform vec3 uCore;\nuniform float uLayer;\nuniform float uLayersOn;")
+    .replace("#include <common>", "#include <common>\nvarying vec3 vWorldP;\nvarying float vSide;\nvarying vec3 vWorldN;\nuniform float uTerr;\nuniform float uRiser;\nuniform float uThick;\nuniform vec3 uSkin;\nuniform vec3 uCore;\nuniform float uLayer;\nuniform float uLayersOn;")
     .replace("#include <color_fragment>", `#include <color_fragment>
       diffuseColor.rgb = uThick > 0.5 ? mix(uCore, uSkin, vSide) : (gl_FrontFacing ? uSkin : uCore);
       float lz = vWorldP.y / uLayer;
@@ -521,7 +533,16 @@ mat.onBeforeCompile = (sh) => {
       float band = abs(fract(lz) - 0.5) * 2.0;
       float groove = smoothstep(0.55 - fw, 0.55 + fw, band);
       float fade = clamp(1.0 - fw * 1.2, 0.0, 1.0);
-      diffuseColor.rgb *= mix(1.0, 1.0 - 0.13 * groove, uLayersOn * fade);`);
+      diffuseColor.rgb *= mix(1.0, 1.0 - 0.13 * groove, uLayersOn * fade);
+      // ledges: on up-facing slopes below 58 deg the sheet splits into horizontal treads every riser
+      vec3 wn = normalize(vWorldN) * (gl_FrontFacing ? 1.0 : -1.0);
+      if (uTerr > 0.5 && wn.y > 0.53) {
+        float lr = vWorldP.y / uRiser;
+        float fr = fract(lr), fwr = fwidth(lr);
+        float riserBand = smoothstep(0.78 - fwr, 0.78 + fwr, fr) * (1.0 - smoothstep(1.0 - fwr, 1.0, fr));
+        float nose = 1.0 - smoothstep(0.0, fwr * 2.0 + 0.02, fr);
+        diffuseColor.rgb *= 1.0 - 0.32 * riserBand + 0.08 * nose;
+      }`);
 };
 let mesh = null;
 
@@ -716,6 +737,8 @@ function facts(r) {
     ...r.chambers.map((c) => [`&ensp;· chamber ${c.pod.join(",")}`,
       c.clear === null ? `open to the sky` : `${fmt(c.clear)} m clear${c.floor > 0.05 ? ` from ${fmt(c.floor)} m` : ""}`]),
     ["Sheet area", `${fmt(r.area, 0)} m²`],
+    ["Ledges: seats · steps", `${fmt(r.ledge[0], 0)} · ${fmt(r.ledge[1], 0)} m²`],
+    ["Ledges: steep · climbing", `${fmt(r.ledge[2], 0)} · ${fmt(r.ledge[3], 0)} m²`],
     ["Printed mass (rPETG)", `≈ ${fmt(r.mass / 1000)} t`, true],
     ["Print parts (2 × 2 × 1.5 m)", `≈ ${r.parts}`],
   ];
@@ -752,6 +775,16 @@ function bindChips(id, attr, keyName) {
   });
 }
 bindChips("presets", "p", "preset");
+document.querySelector('#presets button[data-p="sculpture"]').addEventListener("click", () => {
+  Object.assign(P, SCULPTURE);
+  for (const id of ["twist", "lxy", "lz", "zc", "open", "pull"]) {
+    const el = document.getElementById(id); el.value = P[id];
+    document.getElementById(id + "-o").textContent = SL[id](el.value);
+  }
+  document.querySelectorAll("#surfaces button").forEach((x) => x.setAttribute("aria-pressed", String(x.dataset.s === P.surface)));
+  document.getElementById("terr").checked = true; U.uTerr.value = 1;
+  rebuild();
+});
 bindChips("surfaces", "s", "surface");
 
 const SL = {
@@ -776,6 +809,7 @@ document.getElementById("reseed").onclick = () => {
 };
 document.getElementById("seed-o").textContent = `pattern ${P.seed}`;
 document.getElementById("layers").onchange = (e) => { U.uLayersOn.value = e.target.checked ? 1 : 0; };
+document.getElementById("terr").onchange = (e) => { P.terraces = e.target.checked; U.uTerr.value = P.terraces ? 1 : 0; updateConfigText(); };
 document.getElementById("thick").onchange = (e) => {
   P.thick = e.target.checked; U.uThick.value = P.thick ? 1 : 0;
   if (last) show(last);

@@ -1,0 +1,409 @@
+<title>Twisted Gyroid Climb</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: a gallery sheet for one object. The sculpture breaks out to full width;
+   reading text stays in a ~70ch column; numbers sit in tiles and tables. Ledge classes
+   carry the palette: blue seats, green steps, amber steep steps, rust climbing ledges. */
+:root {
+  --bg: #f2f1ed;
+  --paper: #fbfaf7;
+  --ink: #1c1c1a;
+  --muted: #66625b;
+  --line: #dbd7ce;
+  --accent: #c76a12;
+  --skin: #efece5;
+  --seat: #4f86b8;
+  --steps: #4f9a5e;
+  --steep: #d9a233;
+  --ledges: #c4572e;
+  --smooth: #d9d5cc;
+  --route: #1c1c1a;
+  --ok: #2f7d4a; --warn: #b7791f; --bad: #b43c2a;
+  --u0: #9fb7c7; --u1: #5fae6e; --u2: #e0b03a; --u3: #d9572f; --u4: #7e1d16;
+  --scene: #e8eaeb; --ground: #cfc9be;
+  --font-display: "Syne", "Avenir Next", "Futura", "Trebuchet MS", sans-serif;
+  --font-ui: "IBM Plex Sans", "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+  --font-data: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #131416; --paper: #1a1b1e; --ink: #eceae6; --muted: #a39f97; --line: #2f3034;
+    --accent: #f0a04a; --skin: #e6e2da; --seat: #6fa6d6; --steps: #6dbb7d; --steep: #e6b45a; --ledges: #e2784f;
+    --smooth: #8b877f; --route: #f4f2ee; --ok: #79c48e; --warn: #e6b45a; --bad: #f08a6c;
+    --u0: #6f8899; --u1: #5fae6e; --u2: #e0b03a; --u3: #e86a40; --u4: #b8342a;
+    --scene: #1b1d21; --ground: #24262a;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #131416; --paper: #1a1b1e; --ink: #eceae6; --muted: #a39f97; --line: #2f3034;
+  --accent: #f0a04a; --skin: #e6e2da; --seat: #6fa6d6; --steps: #6dbb7d; --steep: #e6b45a; --ledges: #e2784f;
+  --smooth: #8b877f; --route: #f4f2ee; --ok: #79c48e; --warn: #e6b45a; --bad: #f08a6c;
+  --u0: #6f8899; --u1: #5fae6e; --u2: #e0b03a; --u3: #e86a40; --u4: #b8342a;
+  --scene: #1b1d21; --ground: #24262a;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+body { background: var(--bg); color: var(--ink); font-family: var(--font-ui); font-size: 15.5px; line-height: 1.55; }
+main { max-width: 1180px; margin: 0 auto; padding-inline: 20px; padding-block: 28px 64px; display: flex; flex-direction: column; gap: 38px; }
+.col { max-width: 72ch; }
+h1 { font-family: var(--font-display); font-weight: 800; font-size: clamp(2rem, 5.4vw, 3.3rem); line-height: 0.96; letter-spacing: -0.02em; margin: 6px 0 14px; text-wrap: balance; }
+h2 { font-family: var(--font-display); font-weight: 700; font-size: 1.45rem; margin: 0 0 10px; }
+h3 { font-size: 1rem; margin: 16px 0 6px; }
+p { margin: 0 0 10px; }
+.eyebrow { font-size: 0.74rem; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); }
+.lede { font-size: 1.08rem; }
+.muted { color: var(--muted); }
+.verdicts { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 12px; }
+.verdict { background: var(--paper); border: 1px solid var(--line); border-radius: 8px; padding: 12px 14px; display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.verdict .k { font-size: 0.8rem; color: var(--muted); }
+.verdict .v { font-family: var(--font-data); font-size: 1.12rem; }
+.verdict .d { font-size: 0.84rem; color: var(--muted); line-height: 1.4; }
+.pill { align-self: flex-start; font-size: 0.74rem; font-weight: 600; padding: 1px 8px; border-radius: 999px; border: 1px solid currentColor; }
+.ok { color: var(--ok); } .warn { color: var(--warn); } .bad { color: var(--bad); }
+.figure { display: flex; flex-direction: column; gap: 10px; }
+.stage { position: relative; height: min(76vh, 720px); min-height: 360px; border-radius: 10px; overflow: hidden; border: 1px solid var(--line); background: var(--scene); }
+.stage canvas { display: block; width: 100%; height: 100%; touch-action: none; }
+.controls { display: flex; flex-wrap: wrap; gap: 8px 18px; align-items: center; font-size: 0.92rem; }
+.seg { display: inline-flex; border: 1px solid var(--line); border-radius: 999px; overflow: hidden; }
+.seg button { font: inherit; border: 0; background: var(--paper); color: var(--ink); padding: 5px 12px; cursor: pointer; }
+.seg button[aria-pressed="true"] { background: var(--ink); color: var(--bg); }
+.toggle { display: inline-flex; gap: 6px; align-items: center; cursor: pointer; }
+.toggle input, input[type="range"] { accent-color: var(--accent); }
+button:focus-visible, input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.legend { display: flex; flex-wrap: wrap; gap: 6px 16px; font-size: 0.86rem; color: var(--muted); }
+.legend span::before { content: ""; display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 6px; background: var(--c); vertical-align: -1px; }
+.ramp { display: flex; align-items: center; gap: 8px; font-family: var(--font-data); font-size: 0.78rem; color: var(--muted); }
+.ramp i { display: block; width: 150px; height: 10px; border-radius: 2px; background: linear-gradient(90deg, var(--u0) 0%, var(--u1) 30%, var(--u2) 53%, var(--u3) 67%, var(--u4) 100%); }
+.tbl { overflow-x: auto; border: 1px solid var(--line); border-radius: 8px; background: var(--paper); }
+table { border-collapse: collapse; width: 100%; font-size: 0.9rem; }
+th, td { text-align: left; padding: 7px 12px; border-bottom: 1px solid var(--line); vertical-align: top; }
+th { font-size: 0.74rem; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); background: var(--bg); }
+tr:last-child td { border-bottom: 0; }
+td.num, th.num { text-align: right; white-space: nowrap; font-family: var(--font-data); font-variant-numeric: tabular-nums; }
+.sw { display: inline-block; width: 11px; height: 11px; border-radius: 3px; margin-right: 7px; vertical-align: -1px; }
+.profile { border: 1px solid var(--line); border-radius: 8px; background: var(--paper); overflow-x: auto; }
+.profile svg { display: block; min-width: 480px; width: 100%; height: auto; }
+.two { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 24px; align-items: start; }
+.two > * { min-width: 0; }
+ol.zones { margin: 0; padding-left: 1.3em; } ol.zones li { margin-bottom: 6px; }
+@media (max-width: 560px) { body { font-size: 15px; } main { padding-inline: 16px; } }
+</style>
+
+<main>
+  <header class="col">
+    <div class="eyebrow">Climbable sculpture · one twisted gyroid cell · screening level</div>
+    <h1>Twisted Gyroid Climb</h1>
+    <p class="lede" id="lede"></p>
+  </header>
+
+  <section class="verdicts" id="verdicts" aria-label="Summary"></section>
+
+  <section class="figure" aria-label="3D model">
+    <div class="controls">
+      <div class="seg" role="group" aria-label="Colour">
+        <button type="button" id="c-cls" aria-pressed="true">Ledges</button>
+        <button type="button" id="c-util" aria-pressed="false">Utilisation</button>
+        <button type="button" id="c-plain" aria-pressed="false">Material</button>
+      </div>
+      <label class="toggle"><input type="checkbox" id="t-route" checked> Climbing line</label>
+      <label class="toggle"><input type="checkbox" id="t-people" checked> People</label>
+      <label class="toggle">Section <input type="range" id="cut" min="0" max="100" value="0" aria-label="Section cut"></label>
+    </div>
+    <div class="stage" id="stage"></div>
+    <div class="legend" id="legend-cls">
+      <span style="--c:var(--seat)">seats &amp; landings</span>
+      <span style="--c:var(--steps)">steps</span>
+      <span style="--c:var(--steep)">steep steps</span>
+      <span style="--c:var(--ledges)">climbing ledges</span>
+      <span style="--c:var(--smooth)">smooth (too steep, or facing down)</span>
+    </div>
+    <div class="ramp" id="ramp" hidden>0 <i></i> 1.5 × design strength</div>
+  </section>
+
+  <section class="col">
+    <h2>The ledges</h2>
+    <div id="ledge-text"></div>
+  </section>
+  <section class="two">
+    <div>
+      <h3>What each part of the surface becomes</h3>
+      <div class="tbl"><table id="classes"></table></div>
+    </div>
+    <div>
+      <h3>The climbing line</h3>
+      <div class="profile" id="profile"></div>
+      <p class="muted" style="font-size:0.85rem;margin-top:8px">Height along the easiest line from the ground to the summit, coloured by ledge type. Shaded where the drop beside the line is more than 1 m.</p>
+    </div>
+  </section>
+
+  <section class="col">
+    <h2>Structure and assembly</h2>
+    <div id="structure-text"></div>
+  </section>
+  <section class="two">
+    <div>
+      <h3>Load cases</h3>
+      <div class="tbl"><table id="cases"></table></div>
+    </div>
+    <div>
+      <h3>Sheet thickness options</h3>
+      <div class="tbl"><table id="variants"></table></div>
+      <h3>Most loaded zones</h3>
+      <ol class="zones" id="zones"></ol>
+    </div>
+  </section>
+  <section>
+    <h3>Assembly joints between printed parts (worst first)</h3>
+    <div class="tbl"><table id="joints"></table></div>
+  </section>
+
+  <section class="col">
+    <h2>Safety, method and limits</h2>
+    <div id="method-text"></div>
+  </section>
+</main>
+
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+<script>
+const DATA = /*__DATA__*/null;
+const R = DATA.report, C = R.climb, SS = R.structure, M = R.mesh, cfg = R.config;
+const fmt = (x, d = 1) => (x === null || x === undefined) ? "–" : Number(x).toLocaleString("en-GB", { minimumFractionDigits: d, maximumFractionDigits: d });
+const $ = (id) => document.getElementById(id);
+const cls = (u) => u <= 0.8 ? "ok" : u <= 1.0 ? "warn" : "bad";
+const word = (u) => u <= 0.8 ? "passes" : u <= 1.0 ? "tight" : "fails";
+const CLS_VAR = ["--seat", "--steps", "--steep", "--ledges", "--smooth"];
+const CLS_NAME = ["seats & landings", "steps", "steep steps", "climbing ledges"];
+const riser = cfg.terraces.riser_m;
+const tread = (deg) => deg >= 89 ? 0 : riser / Math.tan(deg * Math.PI / 180);
+
+// ===================================================================== text
+const totalLine = Object.values(C.composition_m).reduce((a, b) => a + b, 0);
+const share = (k) => C.composition_m[k] / totalLine;
+const easy = share("seat") + share("steps");
+$("lede").innerHTML =
+  `One gyroid cell of ${fmt(cfg.cell_m[0], 0)} m, twisted ${fmt(cfg.organic.twist_deg, 0)}°, is the whole piece: ${fmt(M.bounding_box_m[0])} × ${fmt(M.bounding_box_m[1])} × ${fmt(M.bounding_box_m[2])} m. ` +
+  `Wherever its surface faces up gently enough, it splits into horizontal ledges ${fmt(riser * 100, 0)} cm apart that follow the contour lines, so the same surface becomes seats, steps and climbing holds. ` +
+  `<b>You can climb from the ground to ${fmt(C.summit_m, 2)} m</b> over about ${C.ledges_climbed} ledges; ${fmt(easy * 100, 0)}% of the easiest line is seats or comfortable steps, the rest steep steps and ledges where you use your hands. ` +
+  (SS ? (SS.max_displacement_mm <= SS.displacement_limit_mm ? `The shell carries a crowd on every ledge; ` : `It is strong enough but too soft as drawn, so the sheet has to get thicker in the arms; `) : "") + `the open edges need guarding.`;
+
+const V = [
+  { k: "Climb", v: `0 → ${fmt(C.summit_m, 2)} m`, c: "ok", p: "continuous", d: `${C.ledges_climbed} ledges of ${fmt(riser * 100, 0)} cm over a ${fmt(C.length_m, 1)} m line; summit ${fmt(C.top_of_sculpture_m - C.summit_m, 2)} m below the top edge` },
+  { k: "The line", v: `${fmt(easy * 100, 0)}% easy`, c: easy > 0.5 ? "ok" : "warn", p: easy > 0.5 ? "walk & step" : "mostly climbing",
+    d: CLS_NAME.map((n, i) => `${n} ${fmt(C.composition_m[Object.keys(C.composition_m)[i]], 1)} m`).join(" · ") },
+  { k: "Sit & walk", v: `${fmt(C.areas_m2.seat + C.areas_m2.steps, 0)} m²`, c: "ok", p: "steps as seats", d: `comfortable steps (treads over 29 cm) that double as seating; only ${fmt(C.areas_m2.seat, 0)} m² is flat enough for a landing` },
+  { k: "Fall protection", v: `${fmt(C.guarded_share * 100, 0)}% of the line`, c: C.guarded_share > 0.2 ? "warn" : "ok", p: "needs guarding",
+    d: `has a drop over 1 m beside it (up to ${fmt(C.max_drop_m, 1)} m): nets, rails or a limited climbing zone` },
+];
+if (SS) {
+  V.push({ k: "Shell strength", v: `${fmt(SS.utilisation.max, 2)} max`, c: cls(SS.utilisation.max), p: word(SS.utilisation.max), d: `crowd of ${fmt(SS.loads.live_kN_m2)} kN/m² on every ledge; 99.9% of the material under ${fmt(SS.utilisation.p99_9, 2)}` });
+  const j = SS.joints[0];
+  V.push({ k: "Assembly joints", v: j ? `${fmt(j.utilisation, 2)} worst` : "–", c: j ? cls(j.utilisation) : "ok", p: j ? word(j.utilisation) : "", d: `${SS.joints.length} cut planes between ${R.print.parts} printed parts` });
+  const dOk = SS.max_displacement_mm <= SS.displacement_limit_mm;
+  V.push({ k: "Deflection (service)", v: `${fmt(SS.max_displacement_mm)} mm`, c: dOk ? "ok" : "bad", p: dOk ? "passes" : "too soft",
+    d: `limit ${fmt(SS.displacement_limit_mm)} mm (cell/250); worst at the arm tip near (${(SS.max_displacement_at_m || []).map((c) => fmt(c, 1)).join(", ")}) m` });
+  V.push({ k: "Wind overturning", v: `${fmt(SS.overturning.M_restoring_kNm, 0)} / ${fmt(SS.overturning.M_overturning_kNm, 0)} kNm`, c: SS.overturning.ok ? "ok" : "bad", p: SS.overturning.ok ? "stable" : "anchor it", d: `restoring vs. overturning moment` });
+}
+V.push({ k: "Mass", v: `${fmt(M.mass_kg / 1000, 1)} t`, c: "warn", p: "solid ledges", d: `${fmt(M.mass_hollow_ledges_kg / 1000, 1)} t with hollow printed ledges; sheet alone ${fmt(M.sheet_volume_m3 * 1.35, 1)} t` });
+$("verdicts").innerHTML = V.map((x) => `<div class="verdict"><span class="k">${x.k}</span><span class="v">${x.v}</span><span class="pill ${x.c}">${x.p}</span><span class="d">${x.d}</span></div>`).join("");
+
+$("ledge-text").innerHTML =
+  `<p>The ledges are not a stair added to the surface: every column of the sheet whose top faces upwards is built up to the next ${fmt(riser * 100, 0)} cm level. Neighbouring columns at the same level merge into one tread, so each tread is a curved band that follows a contour line of the gyroid, and the twist makes the bands spiral around the piece. ` +
+  `How deep a tread is depends only on the local slope (tread = riser ÷ tan slope): the gentle flanks become deep steps you can sit on, as in the reference, the steeper shoulders narrow ledges. A gyroid has almost no flat areas, so there are hardly any landings: you rest on the steps. Above ${fmt(cfg.terraces.max_slope_deg, 0)}° and on the underside the surface stays smooth, and a ${fmt(cfg.terraces.rim_keep_m * 100, 0)} cm band along every free edge stays a clean lip.</p>` +
+  `<p>The easiest line from the ground to the summit (found by a shortest-path search that charges more for steep ledges) is ${fmt(C.length_m, 1)} m long. It is not code stairs, and is not meant to be: it is a climbable landscape, closer to a rock or a playground than to a building.</p>`;
+
+$("classes").innerHTML = `<thead><tr><th>Ledge</th><th class="num">Slope</th><th class="num">Tread</th><th>Use</th><th class="num">Area</th></tr></thead><tbody>` +
+  C.classes.map((c, i) => {
+    const lo = i ? C.classes[i - 1].max_slope_deg : 0;
+    return `<tr><td><span class="sw" style="background:var(${CLS_VAR[i]})"></span>${CLS_NAME[i]}</td><td class="num">${fmt(lo, 0)}–${fmt(c.max_slope_deg, 0)}°</td>` +
+      `<td class="num">${i ? fmt(tread(c.max_slope_deg) * 100, 0) + "–" + fmt(tread(lo) * 100, 0) + " cm" : "&gt; " + fmt(tread(c.max_slope_deg) * 100, 0) + " cm"}</td>` +
+      `<td>${["sit, rest, gather", "walk up and down", "step, a hand on the next ledge", "climb with hands and feet"][i]}</td><td class="num">${fmt(C.areas_m2[c.name], 0)} m²</td></tr>`;
+  }).join("") + `<tr><td><span class="sw" style="background:var(--smooth)"></span>smooth</td><td class="num">&gt; ${fmt(cfg.terraces.max_slope_deg, 0)}°</td><td class="num">–</td><td>surface and edges only</td><td class="num"></td></tr></tbody>`;
+
+(function profile() {
+  const pts = C.route, pc = C.route_class;
+  const s = [0];
+  for (let i = 1; i < pts.length; i++) s.push(s[i - 1] + Math.hypot(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1], pts[i][2] - pts[i - 1][2]));
+  const W = 640, H = 300, ml = 40, mr = 12, mt = 14, mb = 30;
+  const sMax = s[s.length - 1], zMax = Math.ceil(C.top_of_sculpture_m);
+  const X = (v) => ml + v / sMax * (W - ml - mr), Y = (z) => H - mb - z / zMax * (H - mt - mb);
+  let g = "";
+  for (let z = 0; z <= zMax; z += 1) g += `<line x1="${ml}" x2="${W - mr}" y1="${Y(z)}" y2="${Y(z)}" stroke="var(--line)"/><text x="${ml - 6}" y="${Y(z) + 4}" text-anchor="end" font-size="10" fill="var(--muted)" font-family="IBM Plex Mono, monospace">${z} m</text>`;
+  for (let v = 0; v <= sMax; v += 2) g += `<text x="${X(v)}" y="${H - 10}" text-anchor="middle" font-size="10" fill="var(--muted)" font-family="IBM Plex Mono, monospace">${v}</text>`;
+  for (const [sd, z, drop] of C.drops) if (drop > 1) g += `<rect x="${X(sd) - 2}" y="${mt}" width="4" height="${H - mt - mb}" fill="var(--bad)" opacity="0.07"/>`;
+  for (let i = 1; i < pts.length; i++) {
+    const k = Math.min(pc[i - 1], pc[i]);
+    // draw the line as ledges: horizontal treads at multiples of the riser
+    const z0 = Math.ceil(pts[i - 1][2] / riser) * riser, z1 = Math.ceil(pts[i][2] / riser) * riser;
+    g += `<path d="M ${X(s[i - 1])} ${Y(z0)} H ${X(s[i])} V ${Y(z1)}" fill="none" stroke="var(${CLS_VAR[k]})" stroke-width="3"/>`;
+  }
+  g += `<text x="${X(sMax)}" y="${Y(C.summit_m) - 8}" text-anchor="end" font-size="11" fill="var(--ink)">summit ${fmt(C.summit_m, 2)} m</text>`;
+  $("profile").innerHTML = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Height along the climbing line">${g}</svg>`;
+})();
+
+
+function variantText() {
+  const vs = R.variants || [];
+  const base = vs[0];
+  const alts = vs.slice(1).filter((v) => v.disp_mm != null);
+  if (!alts.length) return "Thicker sheets in the arms, a stiffer fibre-filled polymer or a slender steel prop under the arm would fix it.";
+  const sheet = (v) => `${fmt(v.sheet.base_m * 1000, 0)}/${fmt(v.sheet.top_m * 1000, 0)} mm with a ${fmt(v.sheet.rim_extra_m * 1000, 0)} mm thicker rim`;
+  const parts = alts.map((v) => `the <b>${v.name}</b> option (${sheet(v)}) moves ${fmt(v.disp_mm)} mm, which ${v.disp_mm <= v.limit_mm ? "passes" : "still fails"}, for ${fmt((v.mass_hollow_ledges_kg - base.mass_hollow_ledges_kg) / 1000, 1)} t more material`);
+  const best = alts.filter((v) => v.disp_mm <= v.limit_mm).sort((x, y) => x.mass_hollow_ledges_kg - y.mass_hollow_ledges_kg)[0];
+  const E0 = SS.material.E_MPa, E1 = 7000;
+  const stiffer = alts.concat([base]).map((v) => `${v.name} ${fmt(v.disp_mm * E0 / E1)} mm`).join(", ");
+  return `Compared with the sheet as drawn: ${parts.join("; ")}.` + (best ? ` <b>Recommended: ${best.name}.</b>`
+    : ` Deflection scales with 1/E, so a stiffer 30% glass-fibre grade (E ≈ ${fmt(E1 / 1000, 0)} GPa instead of ${fmt(E0 / 1000, 1)}) would give roughly: ${stiffer}. <b>Recommended: the thicker sheet in a stiffer glass-fibre grade</b>, or a slender steel prop under the arm tip.`);
+}
+if (SS) {
+  $("structure-text").innerHTML =
+    `<p>The terraced solid was modelled with ${SS.elements.toLocaleString("en-GB")} cubic finite elements of ${fmt(SS.voxel_m * 1000, 0)} mm, fixed where it meets the ground, with a crowd of ${fmt(SS.loads.live_kN_m2)} kN/m² on every up-facing ledge (deliberately pessimistic), snow and wind. ` +
+    `<b>It is strong enough</b>: the highest utilisation anywhere is ${fmt(SS.utilisation.max, 2)}, and it is ${SS.overturning.ok ? "stable against wind without anchors" : "not stable against wind without anchors"}. ` +
+    (SS.max_displacement_mm > SS.displacement_limit_mm
+      ? `<b>It is too soft as drawn</b>: under people and snow the tip of the twisted arm near (${(SS.max_displacement_at_m || []).map((c) => fmt(c, 1)).join(", ")}) m moves ${fmt(SS.max_displacement_mm)} mm, over the ${fmt(SS.displacement_limit_mm)} mm limit, and printed polymer creeps, so it would sag further over the years. Stiffness, not strength, governs this piece. ${variantText()}</p>`
+      : `Service deflection is ${fmt(SS.max_displacement_mm)} mm, within the ${fmt(SS.displacement_limit_mm)} mm limit.</p>`) +
+    `<p>It prints as ${R.print.parts} parts in a ${R.print.build_volume_m.join(" × ")} m robotic cell (heaviest ≈ ${fmt(R.print.heaviest_kg, 0)} kg with solid ledges). The worst joint between parts carries ${fmt(SS.joints[0] ? SS.joints[0].utilisation : 0, 2)} of a bolted joint's capacity. Printing the ledges hollow (two walls and a sparse infill) brings the mass from ${fmt(M.mass_kg / 1000, 1)} t to about ${fmt(M.mass_hollow_ledges_kg / 1000, 1)} t.</p>`;
+  $("variants").innerHTML = `<thead><tr><th>Sheet</th><th class="num">Ground / top / rim</th><th class="num">Mass*</th><th class="num">Deflection</th><th class="num">Util.</th></tr></thead><tbody>` +
+    (R.variants || []).map((v) => `<tr><td>${v.name}</td><td class="num">${fmt(v.sheet.base_m * 1000, 0)} / ${fmt(v.sheet.top_m * 1000, 0)} / +${fmt(v.sheet.rim_extra_m * 1000, 0)} mm</td><td class="num">${fmt(v.mass_hollow_ledges_kg / 1000, 1)} t</td>` +
+      `<td class="num ${v.disp_mm <= v.limit_mm ? "ok" : "bad"}">${fmt(v.disp_mm)} mm</td><td class="num">${fmt(v.util_max, 2)}</td></tr>`).join("") +
+    `<tr><td colspan="5" class="muted">* with hollow printed ledges. Deflection limit ${fmt(SS.displacement_limit_mm)} mm.</td></tr></tbody>`;
+  const names = Object.keys(SS.cases).filter((k) => k !== "SLS");
+  $("cases").innerHTML = `<thead><tr><th>Case</th><th class="num">Tension</th><th class="num">Across layers</th><th class="num">Compression</th><th class="num">Util. 99.9%</th></tr></thead><tbody>` +
+    names.map((k) => { const c = SS.cases[k]; return `<tr><td>${k}</td><td class="num">${fmt(c.max_principal_tension_MPa, 2)}</td><td class="num">${fmt(c.max_interlayer_tension_MPa, 2)}</td><td class="num">${fmt(c.max_compression_MPa, 2)}</td><td class="num ${cls(c.utilisation_p99_9)}">${fmt(c.utilisation_p99_9, 2)}</td></tr>`; }).join("") +
+    `<tr><td colspan="5" class="muted">MPa. Design strengths: ${fmt(SS.design_strength_MPa.in_plane_tension)} along layers, ${fmt(SS.design_strength_MPa.interlayer_tension)} across layers, ${fmt(SS.design_strength_MPa.compression)} in compression, ${fmt(SS.design_strength_MPa.joint_tension)} across joints.</td></tr></tbody>`;
+  const fixes = { "tension across print layers": "turn the layers in that part or add a glass-fibre tie", "tension along layers": "thicken locally", "compression": "thicken locally", "local buckling": "add an inner rib" };
+  $("zones").innerHTML = SS.zones.slice(0, 6).map((z) => `<li><b>${fmt(z.max_utilisation, 2)} × design</b>, ${z.governing}, around (${z.centre_m.map((c) => fmt(c, 1)).join(", ")}) m. <span class="muted">${z.max_utilisation < 0.8 ? "Within capacity; if it grows: " : "Fix: "}${fixes[z.governing] || "reinforce locally"}.</span></li>`).join("");
+  $("joints").innerHTML = `<thead><tr><th>#</th><th>Cut plane</th><th class="num">Contact</th><th class="num">Tension</th><th class="num">Force</th><th>Case</th><th class="num">Util.</th></tr></thead><tbody>` +
+    SS.joints.slice(0, 8).map((j, i) => `<tr><td class="num">J${i + 1}</td><td class="num">${j.axis} = ${fmt(j.at_m, 2)} m</td><td class="num">${fmt(j.contact_area_m2, 2)} m²</td><td class="num">${fmt(j.max_tension_MPa, 2)} MPa</td><td class="num">${fmt(j.tension_force_kN, 0)} kN</td><td>${j.case || "–"}</td><td class="num ${cls(j.utilisation)}">${fmt(j.utilisation, 2)}</td></tr>`).join("") + "</tbody>";
+}
+
+$("method-text").innerHTML = `
+<p><b>Climbing safety.</b> A sculpture people climb is judged like play or climbing equipment rather than like a stair. ${fmt(C.guarded_share * 100, 0)}% of the easiest line has a drop of more than 1 m beside it, up to ${fmt(C.max_drop_m, 1)} m. Options: limit free climbing to the lower band and guard the rest with handrails or nets fixed to the ledges; shock-absorbing ground under the base; slip-resistant ledges (a printed texture or grit in the top layer); rounded ledge noses. Check against the playground and climbing-equipment standards that apply (EN 1176 in Europe) with a safety inspector.</p>
+<p><b>Structure.</b> Linear elastic voxel finite elements (8-node hexahedra, ${SS ? fmt(SS.voxel_m * 1000, 0) : 40} mm) of the full terraced solid, solved with algebraic multigrid; self weight, crowd on all up-facing skin, snow and wind with partial factors 1.35 / 1.5. Material: ${SS ? SS.material.name : "printed polymer"}, with low design strengths for layer weakness and creep.</p>
+<p><b>Limits.</b> Screening model: 2–3 elements through the sheet, so bending in thin areas is under-estimated; no creep, temperature, vibration from people moving, or non-linear buckling; joints judged by the tension crossing each cut. The ledges are resolved on a ${fmt((SS ? SS.voxel_m : 0.04) * 100, 0)} cm grid here; the print files should be generated finer. A structural engineer's shell model and tests on printed coupons, ledges and joints come before building.</p>`;
+
+// ===================================================================== 3D
+const stage = $("stage");
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.localClippingEnabled = true;
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+stage.appendChild(renderer.domElement);
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(32, 1, 0.1, 500);
+const controls = new THREE.OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true;
+controls.maxPolarAngle = Math.PI * 0.5;
+scene.add(new THREE.HemisphereLight(0xffffff, 0x8f8a80, 0.55));
+const sun = new THREE.DirectionalLight(0xffffff, 0.8);
+sun.castShadow = true; sun.shadow.mapSize.set(2048, 2048); sun.shadow.bias = -0.0005; sun.shadow.normalBias = 0.02;
+Object.assign(sun.shadow.camera, { left: -10, right: 10, top: 10, bottom: -10, near: 1, far: 80 });
+scene.add(sun, sun.target);
+const cssv = (n) => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+const colv = (n) => new THREE.Color(cssv(n));
+function b64(s) { const bin = atob(s); const u = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) u[i] = bin.charCodeAt(i); return u.buffer; }
+const toScene = (x, y, z) => [x, z, -y];
+const q = new Uint16Array(b64(DATA.shell.pos));
+const pos = new Float32Array(q.length);
+for (let i = 0; i < q.length; i += 3) {
+  const p = toScene(DATA.lo[0] + q[i] / 65535 * DATA.size, DATA.lo[1] + q[i + 1] / 65535 * DATA.size, DATA.lo[2] + q[i + 2] / 65535 * DATA.size);
+  pos[i] = p[0]; pos[i + 1] = p[1]; pos[i + 2] = p[2];
+}
+const geo = new THREE.BufferGeometry();
+geo.setAttribute("position", new THREE.BufferAttribute(pos, 3));
+geo.setIndex(new THREE.BufferAttribute(new Uint32Array(b64(DATA.shell.idx)), 1));
+geo.computeVertexNormals();
+const uval = new Uint8Array(b64(DATA.shell.val)), cval = new Uint8Array(b64(DATA.shell.cls));
+const colors = new Float32Array(uval.length * 3);
+geo.setAttribute("color", new THREE.BufferAttribute(colors, 3));
+const cutPlane = new THREE.Plane(new THREE.Vector3(0, 0, -1), 1e6);
+const mat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.82, side: THREE.DoubleSide, clippingPlanes: [cutPlane] });
+const mesh = new THREE.Mesh(geo, mat);
+mesh.castShadow = true; mesh.receiveShadow = true;
+scene.add(mesh);
+const groundMat = new THREE.MeshStandardMaterial({ roughness: 1 });
+const ground = new THREE.Mesh(new THREE.CircleGeometry(60, 64), groundMat);
+ground.rotation.x = -Math.PI / 2; ground.receiveShadow = true;
+scene.add(ground);
+
+// climbing line
+const curvePts = C.route.filter((_, i) => i % 2 === 0).map((p) => new THREE.Vector3(...toScene(p[0], p[1], Math.ceil(p[2] / riser) * riser + 0.06)));
+const routeMat = new THREE.MeshStandardMaterial({ roughness: 0.5 });
+const route = new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(curvePts), Math.min(600, curvePts.length * 3), 0.05, 8, false), routeMat);
+scene.add(route);
+
+// people: one at the foot, one sitting on a seat ledge near the line, one at the summit
+function figure(sitting) {
+  const g = new THREE.Group();
+  const m = new THREE.MeshStandardMaterial({ color: 0x34383d, roughness: 0.85 });
+  const body = new THREE.Mesh(new THREE.CylinderGeometry(0.17, 0.13, sitting ? 0.75 : 1.42, 14), m);
+  body.position.y = sitting ? 0.42 : 0.71;
+  const head = new THREE.Mesh(new THREE.SphereGeometry(0.12, 14, 10), m);
+  head.position.y = sitting ? 0.92 : 1.63;
+  for (const o of [body, head]) { o.castShadow = true; g.add(o); }
+  return g;
+}
+const people = new THREE.Group();
+scene.add(people);
+const at = (p) => new THREE.Vector3(...toScene(p[0], p[1], Math.ceil(p[2] / riser) * riser));
+const r0 = C.route[0], rN = C.route[C.route.length - 1];
+const pFoot = figure(false); pFoot.position.copy(at([r0[0] + 0.9, r0[1] - 0.9, 0])); people.add(pFoot);
+const seatIdx = C.route_class.findIndex((k, i) => k === 0 && C.route[i][2] > 1.5);
+if (seatIdx >= 0) { const ps = figure(true); ps.position.copy(at(C.route[seatIdx])); people.add(ps); }
+const pTop = figure(false); pTop.position.copy(at(rN)); people.add(pTop);
+const mid = C.route[Math.floor(C.route.length * 0.45)];
+const pMid = figure(false); pMid.position.copy(at(mid)); people.add(pMid);
+
+let mode = "cls";
+function paint() {
+  const cl = CLS_VAR.map(colv);
+  const stops = [["--u0", 0], ["--u1", 0.45], ["--u2", 0.8], ["--u3", 1.0], ["--u4", 1.5]].map(([n, v]) => [colv(n), v]);
+  const plain = colv("--skin"), c = new THREE.Color();
+  for (let i = 0; i < uval.length; i++) {
+    if (mode === "plain") c.copy(plain);
+    else if (mode === "cls") c.copy(cl[Math.min(cval[i], 4)]);
+    else {
+      const u = uval[i] / 255 * 1.5;
+      let k = 0; while (k < stops.length - 2 && u > stops[k + 1][1]) k++;
+      c.copy(stops[k][0]).lerp(stops[k + 1][0], Math.min(1, Math.max(0, (u - stops[k][1]) / (stops[k + 1][1] - stops[k][1]))));
+    }
+    colors[3 * i] = c.r; colors[3 * i + 1] = c.g; colors[3 * i + 2] = c.b;
+  }
+  geo.attributes.color.needsUpdate = true;
+  routeMat.color = colv("--route");
+  scene.background = colv("--scene");
+  groundMat.color = colv("--ground");
+}
+paint();
+window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", paint);
+new MutationObserver(paint).observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
+
+geo.computeBoundingBox();
+const bb = geo.boundingBox, ctr = bb.getCenter(new THREE.Vector3()), sz = bb.getSize(new THREE.Vector3());
+const d = Math.max(sz.x, sz.y, sz.z) * 2.1 + 4;
+controls.target.set(ctr.x, sz.y * 0.42, ctr.z);
+camera.position.set(ctr.x + d * 0.66, sz.y * 0.5 + d * 0.24, ctr.z + d * 0.7);
+sun.position.set(ctr.x + 12, 22, ctr.z + 14); sun.target.position.copy(ctr);
+function resize() { const w = stage.clientWidth, h = stage.clientHeight; renderer.setSize(w, h, false); camera.aspect = w / Math.max(1, h); camera.updateProjectionMatrix(); }
+new ResizeObserver(resize).observe(stage);
+resize();
+(function loop() { controls.update(); renderer.render(scene, camera); requestAnimationFrame(loop); })();
+
+function setMode(m) {
+  mode = m;
+  for (const [id, mm] of [["c-cls", "cls"], ["c-util", "util"], ["c-plain", "plain"]]) $(id).setAttribute("aria-pressed", String(mm === m));
+  $("legend-cls").hidden = m !== "cls"; $("ramp").hidden = m !== "util";
+  paint();
+}
+$("c-cls").onclick = () => setMode("cls");
+$("c-util").onclick = () => setMode("util");
+$("c-plain").onclick = () => setMode("plain");
+$("t-route").onchange = (e) => { route.visible = e.target.checked; };
+$("t-people").onchange = (e) => { people.visible = e.target.checked; };
+$("cut").oninput = (e) => { const v = +e.target.value; cutPlane.constant = v ? bb.max.z - (bb.max.z - bb.min.z) * v / 100 : 1e6; };
+</script>

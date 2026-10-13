@@ -155,3 +155,45 @@ This is a screening model, not a design calculation. The report states its limit
 - **Assembly joints:** the worst one is at 0.27 of the capacity of a bolted joint.
 - **Deflection and wind:** service deflection is 7 mm, against a span/250 limit of 29 mm. The tower is stable against wind without anchors.
 - **Size:** 33 t of printed rPETG-GF.
+
+---
+
+# Climbable sculpture: the surface becomes the steps
+
+The stair study above showed that a regular stair fights the shell. The sculpture direction does the opposite: **the sheet itself splits into ledges**, like the layered reference.
+
+```bash
+python organic_pavilion.py --art            # the terraced gyroid (STL + print parts)
+python analysis.py --art                    # climb, mass, structure -> out_sculpture/
+python build_report.py --sculpture          # viewer/sculpture.html
+```
+
+- **Form:** one gyroid cell of 8 m, twisted a quarter turn (`ART` in `organic_pavilion.py`). The twisted gyroid gives sweeping saddles whose gentle parts spiral continuously from the ground to the top. The Neovius pods only have climbable slopes on their crown.
+- **Ledges:** every column of the sheet whose top faces up (slope under 58°) is built up to the next 18 cm level. Columns at the same level merge into one curved tread that follows a contour line, and tread depth = riser ÷ tan(slope).
+  - **Seats and landings:** under 12°.
+  - **Comfortable steps:** 12–32°, treads 29–85 cm.
+  - **Steep steps:** 32–45°.
+  - **Climbing ledges:** 45–58°, used with hands and feet.
+  - **Smooth:** steeper parts, the underside, and a 30 cm lip along every free edge stay smooth.
+- **Climb:** a shortest-path search over the ledges, with steep ledges costing more, finds the easiest line from the ground to the summit and measures the drop beside it.
+
+The live studio has a "Climbable sculpture" preset and a "Ledges" view.
+
+**Result** (`out_sculpture/report.json`, page in `viewer/sculpture.html`)
+
+- **Size:** 8.7 × 8.6 × 7.3 m.
+- **Climb:** continuous from the ground to 7.15 m, about 40 ledges over a 17 m line. 61% of the line is comfortable steps; the rest are steep steps and ledges climbed with hands.
+- **Ledge areas:** 38 m² of comfortable steps that double as seats, 31 m² of steep steps, 36 m² of climbing ledges. There are hardly any flat landings, because a gyroid has few flat areas.
+- **Fall protection:** 80% of the line has a drop of more than 1 m beside it (up to 4.3 m). It needs guarding, nets or a limited climbing zone; check it against EN 1176 with a safety inspector.
+- **Strength:** the highest utilisation is 0.84, and it is stable in wind without anchors.
+- **Stiffness governs:** the twisted arm tip deflects 46.7 mm, over the 32 mm limit.
+
+| Option | Sheet (ground / top / rim) | Deflection |
+|---|---|---|
+| As drawn | 100 / 60 / +50 mm | 46.7 mm |
+| Thicker sheet | 130 / 80 / +60 mm | 32.9 mm |
+| Edge beams | rim +150 mm | 45.6 mm |
+
+  - The edge beams barely help, because the whole arm bends, not just its edge.
+  - The recommendation is the thicker sheet in a stiffer glass-fibre grade (E ≈ 7 GPa, about 21 mm), or a slender prop under the arm.
+- **Mass and printing:** 26 t with solid ledges, about 20 t with hollow printed ledges. 94 print parts; the worst joint is at 0.81 of the capacity of a bolted joint.
