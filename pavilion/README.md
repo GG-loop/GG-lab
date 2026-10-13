@@ -71,3 +71,47 @@ The main parameters are in `DEFAULT_CONFIG` at the top of `pavilion.py`: surface
 ```bash
 python build_viewer.py   # embeds the module meshes into viewer/template.html -> viewer/index.html
 ```
+
+---
+
+# Organic direction: one cell is the pavilion
+
+`organic_pavilion.py` takes a different approach. A single cell of a minimal surface (Neovius by default) is scaled up to become the whole pavilion, and a twist turns the mathematics into an organic form.
+
+![organic preview](out_organic/preview.png)
+
+**How the form is made**
+
+- **The room:** the central chamber of the cell is kept as the room. Everything else is trimmed by a soft envelope, so no surface is cut flat except at the ground.
+- **The openings:** the 12 arms of the chamber become the openings. The 4 diagonal arms are walk-through portals at the corners. The 4 upper arms are clerestory openings, and the dished cap on top is the roof.
+- **Mathematics with a twist:** each pod twists and tapers with height and sways slowly. All of it fades to zero at the ground, so the footprint stays planted.
+- **The sheet:** it is graded from 100 mm at the ground to 60 mm at the crown, plus 50 mm along the free rims, which act as edge beams.
+- **Modular:** pods sit on a 3D grid (i, j, level).
+  - Side by side, they fuse through the tunnels the surface already has along shared cell edges. The tunnel floor is trimmed so you can walk through (about 2.15 m clear).
+  - Stacked, the roof of one chamber becomes the dished floor of the next.
+
+**Default single pod**
+
+| | |
+|---|---|
+| Boundary | 6.4 × 6.4 × 6.1 m |
+| Chamber clear height | 5.5 m |
+| Corner portals | 4, about 3.1 m clear |
+| Sheet area | about 72 m² |
+| Mass | about 7.6 t of rPETG |
+| Print parts | 51, for a 2 × 2 × 1.5 m robotic print cell |
+
+```bash
+python organic_pavilion.py                      # single pod
+python organic_pavilion.py --pods 0,0,0 1,1,0   # two pods on the diagonal
+python organic_pavilion.py --pods 0,0,0 0,0,1   # two-storey tower
+python organic_pavilion.py -c my.json           # settings copied from the studio
+```
+
+**Live studio:** `viewer/organic.html` runs the same field in the browser. You can adjust the twist, taper, sway, cell size, openness, arrangement and surface live. It shows the two labyrinths in two colours and the print layers, and it copies its settings as JSON for the generator.
+
+**Next steps**
+
+- Cut the print parts along the form instead of on a box grid; the grid currently leaves a few thin slivers.
+- Run a structural check of the cantilevered crown and the stacked floors.
+- Reduce the mass of the stacked configurations: thinner upper sheets, or a ribbed sheet instead of a solid one.

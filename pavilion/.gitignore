@@ -2,3 +2,6 @@ out/*
 !out/preview.png
 !out/manifest.json
 __pycache__/
+out_organic/*
+!out_organic/preview.png
+!out_organic/manifest.json

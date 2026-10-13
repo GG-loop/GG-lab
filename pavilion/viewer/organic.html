@@ -1,0 +1,713 @@
+<title>Neovius Pavilion Studio</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Syne:wght@600;700;800&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: a studio bench. Parameters on a narrow rail at the left, the form fills the rest.
+   Model-over-controls on phones. The two sides of the surface (the two labyrinths of the
+   minimal surface) carry the palette: mineral white outside, amber inside. */
+:root {
+  --bg: #eceae6;
+  --rail: #f6f5f2;
+  --ink: #1d1c1a;
+  --muted: #6a665f;
+  --line: #d8d4cc;
+  --accent: #c76a12;
+  --accent-ink: #ffffff;
+  --scene-top: #dfe3e6;
+  --scene: #eef0f1;
+  --ground: #c9c4ba;
+  --skin: #f4f2ec;
+  --core: #e39a2b;
+  --ok: #3f7d4e;
+  --warn: #b5462a;
+  --font-display: "Syne", "Avenir Next", "Futura", "Trebuchet MS", sans-serif;
+  --font-ui: "IBM Plex Sans", "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+  --font-data: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #121315; --rail: #1a1b1e; --ink: #ecebe7; --muted: #a29d94; --line: #2e2f33;
+    --accent: #f0a04a; --accent-ink: #17120b; --scene-top: #0f1113; --scene: #1a1c20; --ground: #202226;
+    --skin: #e9e6de; --core: #e9a23c; --ok: #7cc28c; --warn: #f08a6c;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #121315; --rail: #1a1b1e; --ink: #ecebe7; --muted: #a29d94; --line: #2e2f33;
+  --accent: #f0a04a; --accent-ink: #17120b; --scene-top: #0f1113; --scene: #1a1c20; --ground: #202226;
+  --skin: #e9e6de; --core: #e9a23c; --ok: #7cc28c; --warn: #f08a6c;
+  color-scheme: dark;
+}
+html, body { height: 100%; }
+body { background: var(--bg); color: var(--ink); font-family: var(--font-ui); font-size: 14px; }
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+
+.app { height: 100%; display: grid; grid-template-columns: minmax(290px, 340px) minmax(0, 1fr); gap: 16px; padding: 16px; }
+.rail { min-width: 0; overflow-y: auto; display: flex; flex-direction: column; gap: 18px; padding-right: 6px; }
+.stage { position: relative; min-width: 0; min-height: 0; border-radius: 10px; overflow: hidden; border: 1px solid var(--line); background: var(--scene); }
+.stage canvas { display: block; width: 100%; height: 100%; touch-action: none; }
+
+header h1 { font-family: var(--font-display); font-weight: 800; font-size: 2rem; line-height: 0.95; margin: 0; letter-spacing: -0.02em; text-wrap: balance; }
+header h1 em { font-style: normal; color: var(--accent); }
+header p { margin: 8px 0 0; color: var(--muted); line-height: 1.45; max-width: 36ch; }
+
+section { display: flex; flex-direction: column; gap: 9px; }
+h2 { margin: 0; font-family: var(--font-ui); font-size: 0.7rem; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); }
+
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chips button {
+  font: inherit; font-weight: 500; padding: 6px 11px; border-radius: 999px; cursor: pointer;
+  border: 1px solid var(--line); background: var(--rail); color: var(--ink);
+}
+.chips button[aria-pressed="true"] { background: var(--ink); border-color: var(--ink); color: var(--bg); }
+button:focus-visible, input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+.slider { display: grid; grid-template-columns: minmax(0, 7.5em) minmax(0, 1fr) 4.6em; align-items: center; gap: 10px; }
+.slider span { color: var(--muted); }
+.slider output { font-family: var(--font-data); font-variant-numeric: tabular-nums; text-align: right; font-size: 0.85rem; }
+input[type="range"] { width: 100%; accent-color: var(--accent); }
+.row { display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center; }
+.toggle { display: inline-flex; gap: 7px; align-items: center; cursor: pointer; }
+.toggle input { accent-color: var(--accent); margin: 0; }
+.link { font: inherit; color: var(--accent); background: none; border: 0; padding: 0; cursor: pointer; text-decoration: underline; text-underline-offset: 3px; }
+
+.facts { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 5px 12px; margin: 0; }
+.facts dt { color: var(--muted); }
+.facts dd { margin: 0; font-family: var(--font-data); font-variant-numeric: tabular-nums; text-align: right; }
+.facts dd.big { font-size: 1.05rem; font-weight: 500; }
+.pill { display: inline-block; padding: 2px 8px; border-radius: 999px; font-family: var(--font-ui); font-size: 0.78rem; font-weight: 600; }
+.pill.ok { color: var(--ok); border: 1px solid var(--ok); }
+.pill.bad { color: var(--warn); border: 1px solid var(--warn); }
+.note { margin: 0; color: var(--muted); font-size: 0.82rem; line-height: 1.45; }
+.swatch { display: inline-block; width: 11px; height: 11px; border-radius: 3px; vertical-align: -1px; margin-right: 5px; border: 1px solid var(--line); }
+
+pre.cfg { margin: 0; padding: 10px; border-radius: 6px; border: 1px solid var(--line); background: var(--rail); font-family: var(--font-data); font-size: 0.74rem; line-height: 1.45; overflow-x: auto; max-height: 180px; }
+
+.hud { position: absolute; left: 14px; right: 14px; bottom: 12px; display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px; pointer-events: none; font-family: var(--font-data); font-size: 0.76rem; color: var(--muted); }
+.busy { position: absolute; top: 12px; right: 14px; font-family: var(--font-data); font-size: 0.76rem; color: var(--muted); }
+.loading { position: absolute; inset: 0; display: grid; place-items: center; color: var(--muted); }
+
+@media (max-width: 780px) {
+  .app { height: auto; grid-template-columns: minmax(0, 1fr); }
+  .stage { order: -1; height: 64vh; min-height: 340px; }
+  .rail { overflow: visible; padding-right: 0; }
+}
+</style>
+
+<div class="app">
+  <aside class="rail" aria-label="Pavilion parameters">
+    <header>
+      <h1>Neovius <em>Pavilion</em> Studio</h1>
+      <p>One cell of a triply periodic minimal surface is one pavilion. Its central chamber is the room, its arms are the doors, and a twist bends the mathematics into something organic. Pods fuse side by side and stack upwards.</p>
+    </header>
+
+    <section>
+      <h2>Arrangement</h2>
+      <div class="chips" id="presets">
+        <button type="button" data-p="single" aria-pressed="true">Single pod</button>
+        <button type="button" data-p="twin" aria-pressed="false">Twin</button>
+        <button type="button" data-p="diagonal" aria-pressed="false">Diagonal pair</button>
+        <button type="button" data-p="tower" aria-pressed="false">Tower</button>
+        <button type="button" data-p="trio" aria-pressed="false">Trio</button>
+        <button type="button" data-p="stepped" aria-pressed="false">Stepped</button>
+      </div>
+    </section>
+
+    <section>
+      <h2>Minimal surface</h2>
+      <div class="chips" id="surfaces">
+        <button type="button" data-s="neovius" aria-pressed="true">Neovius</button>
+        <button type="button" data-s="schwarz_p" aria-pressed="false">Schwarz P</button>
+        <button type="button" data-s="gyroid" aria-pressed="false">Gyroid</button>
+        <button type="button" data-s="diamond" aria-pressed="false">Diamond</button>
+      </div>
+    </section>
+
+    <section>
+      <h2>Twist</h2>
+      <label class="slider"><span>Twist / storey</span><input type="range" id="twist" min="-120" max="120" step="1" value="28"><output id="twist-o"></output></label>
+      <label class="slider"><span>Taper</span><input type="range" id="taper" min="0" max="0.35" step="0.01" value="0.10"><output id="taper-o"></output></label>
+      <label class="slider"><span>Sway</span><input type="range" id="sway" min="0" max="1.2" step="0.05" value="0.35"><output id="sway-o"></output></label>
+      <div class="row"><button type="button" class="link" id="reseed">New sway pattern</button><span class="note" id="seed-o"></span></div>
+    </section>
+
+    <section>
+      <h2>Cell</h2>
+      <label class="slider"><span>Plan size</span><input type="range" id="lxy" min="6.6" max="10" step="0.1" value="7.2"><output id="lxy-o"></output></label>
+      <label class="slider"><span>Storey height</span><input type="range" id="lz" min="6" max="14" step="0.1" value="10"><output id="lz-o"></output></label>
+      <label class="slider"><span>Chamber centre</span><input type="range" id="zc" min="0.6" max="2.6" step="0.05" value="1.3"><output id="zc-o"></output></label>
+      <label class="slider"><span>Openness</span><input type="range" id="open" min="0.8" max="1.2" step="0.01" value="1"><output id="open-o"></output></label>
+      <label class="slider"><span>Corner pull</span><input type="range" id="pull" min="1" max="2.4" step="0.05" value="1.15"><output id="pull-o"></output></label>
+    </section>
+
+    <section>
+      <h2>Display</h2>
+      <div class="row">
+        <label class="toggle"><input type="checkbox" id="layers" checked> Print layers</label>
+        <label class="toggle"><input type="checkbox" id="person" checked> People for scale</label>
+      </div>
+      <label class="slider"><span>Section cut</span><input type="range" id="cut" min="0" max="100" value="0"><output id="cut-o"></output></label>
+      <p class="note"><span class="swatch" style="background:var(--skin)"></span>outer labyrinth <span class="swatch" style="background:var(--core);margin-left:10px"></span>inner labyrinth (the rooms). Layer lines are drawn 4× their real 12 mm pitch.</p>
+    </section>
+
+    <section>
+      <h2>Pavilion</h2>
+      <dl class="facts" id="facts"></dl>
+      <p class="note" id="facts-note"></p>
+    </section>
+
+    <section>
+      <h2>Settings for organic_pavilion.py</h2>
+      <pre class="cfg" id="cfg"></pre>
+      <div class="row"><button type="button" class="link" id="copy">Copy settings</button><span class="note" id="copy-o"></span></div>
+    </section>
+  </aside>
+
+  <main class="stage" id="stage">
+    <div class="loading" id="loading">Loading 3D studio…</div>
+    <div class="busy" id="busy" hidden>shaping…</div>
+    <div class="hud"><span id="hud-l"></span><span>drag to orbit · scroll to zoom · right-drag to pan</span></div>
+  </main>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+<script>
+// =========================================================================
+// Field + mesher (runs in a Web Worker). Mirrors organic_pavilion.py.
+// =========================================================================
+function workerMain() {
+  const PI = Math.PI;
+  function tpms(name, x, y, z) {
+    const s = Math.sin, c = Math.cos;
+    if (name === "gyroid") return s(x) * c(y) + s(y) * c(z) + s(z) * c(x);
+    if (name === "schwarz_p") return c(x) + c(y) + c(z);
+    if (name === "diamond") return s(x) * s(y) * s(z) + s(x) * c(y) * c(z) + c(x) * s(y) * c(z) + c(x) * c(y) * s(z);
+    return 3 * (c(x) + c(y) + c(z)) + 4 * c(x) * c(y) * c(z);  // neovius
+  }
+  function smax(a, b, k) { const h = Math.min(1, Math.max(0, 0.5 - 0.5 * (a - b) / k)); return a * (1 - h) + b * h + k * h * (1 - h); }
+  function smin(a, b, k) { return -smax(-a, -b, k); }
+  function frac(x) { return ((x % 1) + 1) % 1; }
+
+  function setup(cfg) {
+    const [Lx, Ly, Lz] = cfg.cell_m, zc = cfg.chamber_centre_m, e = cfg.envelope;
+    const pods = cfg.pods.map((p) => [p[0], p[1], p[2] || 0]);
+    const centre = (p) => [p[0] * Lx, p[1] * Ly, zc + p[2] * Lz];
+    const H = Math.max(...pods.map((p) => centre(p)[2])) + e.radius_m[2];
+    // links: shared cell edges
+    const edgesOf = (p) => {
+      const out = new Map();
+      for (let ax = 0; ax < 3; ax++) {
+        const o = [0, 1, 2].filter((a) => a !== ax);
+        for (const s1 of [-0.5, 0.5]) for (const s2 of [-0.5, 0.5]) {
+          const m = [0, 0, 0]; m[o[0]] = s1; m[o[1]] = s2;
+          const key = [p[0] + m[0], p[1] + m[1], p[2] + m[2], ax];
+          out.set(key.join(), key);
+        }
+      }
+      return out;
+    };
+    const sorted = pods.slice().sort((a, b) => a[0] - b[0] || a[1] - b[1] || a[2] - b[2]);
+    const links = [];
+    for (let a = 0; a < sorted.length; a++) for (let b = a + 1; b < sorted.length; b++) {
+      const ea = edgesOf(sorted[a]), eb = edgesOf(sorted[b]);
+      for (const [k, ed] of ea) if (eb.has(k)) {
+        const mid = [ed[0] * Lx, ed[1] * Ly, ed[2] * Lz + zc];
+        for (const r of [sorted[a], sorted[b]]) links.push({ pod: r, a: centre(r), b: mid, vertical: ed[3] === 2 });
+      }
+    }
+    const cols = [...new Set(pods.map((p) => p[0] + "," + p[1]))].map((s) => s.split(",").map(Number));
+    const ph = [0, 1, 2, 3, 4, 5].map((i) => frac(Math.sin(cfg.organic.seed * 12.9898 + i * 78.233) * 43758.5453) * 2 * PI);
+    return { Lx, Ly, Lz, zc, e, pods, centre, H, links, cols, ph };
+  }
+
+  function evalPoint(cfg, S, X, Y, Z, out) {
+    const o = cfg.organic, { Lx, Ly, Lz, zc, e, H } = S;
+    // ---- warp
+    const s = Math.max(0, Z / (Lz * 0.65));
+    const ease = s < 1 ? s * s * (3 - 2 * s) : s;
+    const a = -o.twist_deg * PI / 180 * ease, ca = Math.cos(a), sa = Math.sin(a);
+    const sz = Math.min(1, Math.max(0, Z / H));
+    const scale = 1 / (1 - o.taper * sz * sz * (3 - 2 * sz));
+    const sigma2 = Math.pow(0.6 * Math.max(Lx, Ly), 2);
+    let dx = 0, dy = 0, ws = 0;
+    for (const [i, j] of S.cols) {
+      const x = X - i * Lx, y = Y - j * Ly;
+      const w = Math.exp(-(x * x + y * y) / sigma2) + 1e-12;
+      dx += w * ((x * ca - y * sa) * scale - x);
+      dy += w * ((x * sa + y * ca) * scale - y);
+      ws += w;
+    }
+    let xr = X + dx / ws, yr = Y + dy / ws;
+    const k = 2 * PI / (1.6 * Math.max(Lx, Ly, Lz)), A = o.sway_m * Math.min(1, s), ph = S.ph;
+    xr += A * Math.sin(k * Z + ph[0]) * Math.cos(0.7 * k * Y + ph[1]);
+    yr += A * Math.sin(0.9 * k * Z + ph[2]) * Math.cos(0.6 * k * X + ph[3]);
+    const zr = Z + 0.4 * A * Math.sin(0.8 * k * X + ph[4]) * Math.sin(0.8 * k * Y + ph[5]);
+    // ---- surface
+    const f = tpms(cfg.surface, xr * 2 * PI / Lx + PI, yr * 2 * PI / Ly + PI, (zr - zc) * 2 * PI / Lz + PI);
+    // ---- envelope
+    const [Rx, Ry, Rz] = e.radius_m, n = e.plan_exponent, m = e.vertical_exponent;
+    let env = null;
+    for (const p of S.pods) {
+      const c = S.centre(p);
+      const plan = Math.pow(Math.pow(Math.abs(xr - c[0]) / Rx, n) + Math.pow(Math.abs(yr - c[1]) / Ry, n), 1 / n);
+      const g = Math.pow(Math.pow(plan, m) + Math.pow(Math.abs(zr - c[2]) / Rz, m), 1 / m);
+      const d = (g - 1) * Math.min(Rx, Ry);
+      env = env === null ? d : smin(env, d, e.pod_blend_m);
+    }
+    const r = e.link_radius_m;
+    let tun = 1e3;
+    for (const L of S.links) {
+      const vx = L.b[0] - L.a[0], vy = L.b[1] - L.a[1], vz = L.b[2] - L.a[2];
+      const vv = vx * vx + vy * vy + vz * vz;
+      let t = ((xr - L.a[0]) * vx + (yr - L.a[1]) * vy + (zr - L.a[2]) * vz) / vv;
+      t = Math.min(1, Math.max(0, t));
+      const sq = L.vertical ? 1.4 * r / Rz : 1;
+      const px = xr - L.a[0] - t * vx, py = yr - L.a[1] - t * vy, pz = (zr - L.a[2] - t * vz) * sq;
+      env = smin(env, Math.sqrt(px * px + py * py + pz * pz) - r, e.pod_blend_m);
+      if (L.vertical && L.pod[2] === 0) {  // tunnel floor trim, in real coordinates
+        const hv = vx * vx + vy * vy;
+        let u = ((X - L.a[0]) * vx + (Y - L.a[1]) * vy) / hv;
+        u = Math.min(1, Math.max(0.6, u));
+        const dp = Math.hypot(X - L.a[0] - u * vx, Y - L.a[1] - u * vy) - 0.65 * r;
+        tun = Math.min(tun, Math.max(dp, Z - e.link_floor_m));
+      }
+    }
+    out[0] = f;
+    out[1] = Math.max(env, -Z, -tun);   // keep where < 0
+    out[2] = env;
+  }
+
+  function build(cfg) {
+    const t0 = performance.now();
+    const S = setup(cfg);
+    const e = cfg.envelope;
+    const C = S.pods.map(S.centre);
+    const pad = 0.6 + cfg.organic.sway_m;
+    const lo = [Math.min(...C.map((c) => c[0])) - e.radius_m[0] - pad, Math.min(...C.map((c) => c[1])) - e.radius_m[1] - pad, 0];
+    const hi = [Math.max(...C.map((c) => c[0])) + e.radius_m[0] + pad, Math.max(...C.map((c) => c[1])) + e.radius_m[1] + pad, S.H + 0.6];
+    const vol = (hi[0] - lo[0]) * (hi[1] - lo[1]) * (hi[2] - lo[2]);
+    const h = Math.max(0.085, Math.cbrt(vol / 1.1e6));
+    const nx = Math.ceil((hi[0] - lo[0]) / h) + 3, ny = Math.ceil((hi[1] - lo[1]) / h) + 3, nz = Math.ceil((hi[2] - lo[2]) / h) + 3;
+    const ox = lo[0] - h, oy = lo[1] - h, oz = -h * 0.5;
+    const N = nx * ny * nz;
+    const F = new Float32Array(N), Cc = new Float32Array(N), E = new Float32Array(N);
+    const tmp = [0, 0, 0];
+    for (let kz = 0; kz < nz; kz++) for (let j = 0; j < ny; j++) for (let i = 0; i < nx; i++) {
+      const id = i + nx * (j + ny * kz);
+      evalPoint(cfg, S, ox + i * h, oy + j * h, oz + kz * h, tmp);
+      F[id] = tmp[0]; Cc[id] = tmp[1]; E[id] = tmp[2];
+    }
+    const idx = (i, j, k) => i + nx * (j + ny * k);
+    const grad = (id, out) => {
+      const i = id % nx, j = ((id / nx) | 0) % ny, k = (id / (nx * ny)) | 0;
+      const g = (a, b, d) => (F[b] - F[a]) / d;
+      out[0] = g(idx(Math.max(i - 1, 0), j, k), idx(Math.min(i + 1, nx - 1), j, k), 2 * h);
+      out[1] = g(idx(i, Math.max(j - 1, 0), k), idx(i, Math.min(j + 1, ny - 1), k), 2 * h);
+      out[2] = g(idx(i, j, Math.max(k - 1, 0)), idx(i, j, Math.min(k + 1, nz - 1)), 2 * h);
+    };
+    // vertex store: x y z gx gy gz clip env
+    let V = new Float32Array(1 << 18), nv = 0;
+    const push = (a) => { if ((nv + 1) * 8 > V.length) { const W = new Float32Array(V.length * 2); W.set(V); V = W; } V.set(a, nv * 8); return nv++; };
+    const cache = new Map();
+    const ga = [0, 0, 0], gb = [0, 0, 0];
+    const pt = (id) => { const i = id % nx, j = ((id / nx) | 0) % ny, k = (id / (nx * ny)) | 0; return [ox + i * h, oy + j * h, oz + k * h]; };
+    function edgeVert(a, b) {
+      const key = a < b ? a * 4194304 + b : b * 4194304 + a;
+      let v = cache.get(key);
+      if (v !== undefined) return v;
+      const t = F[a] / (F[a] - F[b]);
+      const pa = pt(a), pb = pt(b);
+      grad(a, ga); grad(b, gb);
+      v = push([pa[0] + t * (pb[0] - pa[0]), pa[1] + t * (pb[1] - pa[1]), pa[2] + t * (pb[2] - pa[2]),
+                ga[0] + t * (gb[0] - ga[0]), ga[1] + t * (gb[1] - ga[1]), ga[2] + t * (gb[2] - ga[2]),
+                Cc[a] + t * (Cc[b] - Cc[a]), E[a] + t * (E[b] - E[a])]);
+      cache.set(key, v);
+      return v;
+    }
+    const tris = [];
+    const TETS = [[0, 5, 1, 6], [0, 1, 2, 6], [0, 2, 3, 6], [0, 3, 7, 6], [0, 7, 4, 6], [0, 4, 5, 6]];
+    const corner = new Int32Array(8);
+    for (let k = 0; k < nz - 1; k++) for (let j = 0; j < ny - 1; j++) for (let i = 0; i < nx - 1; i++) {
+      const c0 = idx(i, j, k);
+      corner[0] = c0; corner[1] = c0 + 1; corner[2] = c0 + 1 + nx; corner[3] = c0 + nx;
+      corner[4] = c0 + nx * ny; corner[5] = corner[4] + 1; corner[6] = corner[4] + 1 + nx; corner[7] = corner[4] + nx;
+      let any = false, keep = false, pos = false, neg = false;
+      for (let q = 0; q < 8; q++) { const f = F[corner[q]]; if (f < 0) neg = true; else pos = true; if (Cc[corner[q]] < h) keep = true; }
+      if (!(neg && pos) || !keep) continue;
+      for (const T of TETS) {
+        const v = T.map((q) => corner[q]);
+        const inside = v.filter((id) => F[id] < 0), outside = v.filter((id) => F[id] >= 0);
+        if (inside.length === 0 || inside.length === 4) continue;
+        if (inside.length === 1 || inside.length === 3) {
+          const [a, rest] = inside.length === 1 ? [inside[0], outside] : [outside[0], inside];
+          tris.push(edgeVert(a, rest[0]), edgeVert(a, rest[1]), edgeVert(a, rest[2]));
+        } else {
+          const [a, b] = inside, [c, d] = outside;
+          const p0 = edgeVert(a, c), p1 = edgeVert(a, d), p2 = edgeVert(b, d), p3 = edgeVert(b, c);
+          tris.push(p0, p1, p2, p0, p2, p3);
+        }
+      }
+    }
+    // clip triangles where clip >= 0 (outside envelope, below ground, tunnel floor)
+    const out = [];
+    const ccache = new Map();
+    function clipVert(a, b) {
+      const key = a < b ? a * 16777216 + b : b * 16777216 + a;
+      let v = ccache.get(key);
+      if (v !== undefined) return v;
+      const ca = V[a * 8 + 6], cb = V[b * 8 + 6], t = ca / (ca - cb);
+      const r = new Array(8);
+      for (let q = 0; q < 8; q++) r[q] = V[a * 8 + q] + t * (V[b * 8 + q] - V[a * 8 + q]);
+      r[6] = 0;
+      v = push(r); ccache.set(key, v); return v;
+    }
+    for (let q = 0; q < tris.length; q += 3) {
+      const t = [tris[q], tris[q + 1], tris[q + 2]];
+      const ins = t.map((v) => V[v * 8 + 6] < 0);
+      const n = ins.filter(Boolean).length;
+      if (n === 0) continue;
+      if (n === 3) { out.push(...t); continue; }
+      // rotate so the odd one out is first
+      let r = 0;
+      if (n === 1) r = ins.indexOf(true); else r = ins.indexOf(false);
+      const a = t[r], b = t[(r + 1) % 3], c = t[(r + 2) % 3];
+      if (n === 1) out.push(a, clipVert(a, b), clipVert(a, c));
+      else { const ab = clipVert(a, b), ac = clipVert(a, c); out.push(ab, b, c, ab, c, ac); }
+    }
+    // orient by gradient, compact, convert to Y-up, measure
+    const used = new Int32Array(nv).fill(-1);
+    const pos = [], nrm = [], ind = [];
+    let area = 0, mass = 0;
+    const s = cfg.sheet, dens = cfg.printer.density_kg_m3;
+    const bmin = [1e9, 1e9, 1e9], bmax = [-1e9, -1e9, -1e9];
+    const bv = cfg.printer.build_volume_m, partSet = new Set();
+    const mapV = (v) => {
+      if (used[v] >= 0) return used[v];
+      const o = v * 8, x = V[o], y = V[o + 1], z = V[o + 2];
+      const gl = Math.hypot(V[o + 3], V[o + 4], V[o + 5]) || 1;
+      pos.push(x, z, -y); nrm.push(V[o + 3] / gl, V[o + 5] / gl, -V[o + 4] / gl);
+      for (let a = 0; a < 3; a++) { const c = [x, y, z][a]; if (c < bmin[a]) bmin[a] = c; if (c > bmax[a]) bmax[a] = c; }
+      partSet.add(Math.floor((x - lo[0]) / bv[0]) + "," + Math.floor((y - lo[1]) / bv[1]) + "," + Math.floor(z / bv[2]));
+      return (used[v] = pos.length / 3 - 1);
+    };
+    for (let q = 0; q < out.length; q += 3) {
+      let [a, b, c] = [out[q], out[q + 1], out[q + 2]];
+      const A = [V[a * 8], V[a * 8 + 1], V[a * 8 + 2]], B = [V[b * 8], V[b * 8 + 1], V[b * 8 + 2]], Cv = [V[c * 8], V[c * 8 + 1], V[c * 8 + 2]];
+      const u = [B[0] - A[0], B[1] - A[1], B[2] - A[2]], w = [Cv[0] - A[0], Cv[1] - A[1], Cv[2] - A[2]];
+      const nn = [u[1] * w[2] - u[2] * w[1], u[2] * w[0] - u[0] * w[2], u[0] * w[1] - u[1] * w[0]];
+      const ar = 0.5 * Math.hypot(nn[0], nn[1], nn[2]);
+      if (ar < 1e-9) continue;
+      const g = [0, 1, 2].map((d) => V[a * 8 + 3 + d] + V[b * 8 + 3 + d] + V[c * 8 + 3 + d]);
+      if (nn[0] * g[0] + nn[1] * g[1] + nn[2] * g[2] < 0) { const tt = b; b = c; c = tt; }
+      area += ar;
+      const zm = (A[2] + B[2] + Cv[2]) / 3, em = (V[a * 8 + 7] + V[b * 8 + 7] + V[c * 8 + 7]) / 3;
+      const th = s.base_m + (s.top_m - s.base_m) * Math.min(1, Math.max(0, zm / S.H)) + s.rim_extra_m * Math.exp(-Math.pow(em / 0.35, 2));
+      mass += ar * th * dens;
+      ind.push(mapV(a), mapV(b), mapV(c));
+    }
+    // chambers: clear height on each pod axis
+    const chambers = S.pods.map((p) => {
+      const c = S.centre(p), o3 = [0, 0, 0];
+      const solidAt = (z) => { evalPoint(cfg, S, c[0], c[1], z, o3); return o3[1] < 0; };
+      const fAt = (z) => { evalPoint(cfg, S, c[0], c[1], z, o3); return o3[0]; };
+      let floor = 0, roof = null;
+      const f0 = fAt(c[2]);
+      for (let z = c[2]; z < S.H + 0.6; z += 0.02) if (Math.sign(fAt(z)) !== Math.sign(f0) && solidAt(z)) { roof = z; break; }
+      for (let z = c[2]; z > 0; z -= 0.02) if (Math.sign(fAt(z)) !== Math.sign(f0) && solidAt(z)) { floor = z; break; }
+      return { pod: p, floor, clear: roof === null ? null : roof - floor };
+    });
+    return {
+      pos: new Float32Array(pos), nrm: new Float32Array(nrm), ind: new Uint32Array(ind),
+      bbox: [bmax[0] - bmin[0], bmax[1] - bmin[1], bmax[2] - bmin[2]], bmin, bmax,
+      area, mass, parts: partSet.size, chambers, voxel: h, ms: performance.now() - t0,
+    };
+  }
+
+  self.onmessage = (ev) => {
+    const r = build(ev.data.cfg);
+    self.postMessage({ id: ev.data.id, ...r }, [r.pos.buffer, r.nrm.buffer, r.ind.buffer]);
+  };
+}
+
+// =========================================================================
+// Page
+// =========================================================================
+const PRESETS = {
+  single: [[0, 0, 0]],
+  twin: [[0, 0, 0], [1, 0, 0]],
+  diagonal: [[0, 0, 0], [1, 1, 0]],
+  tower: [[0, 0, 0], [0, 0, 1]],
+  trio: [[0, 0, 0], [1, 0, 0], [1, 1, 0]],
+  stepped: [[0, 0, 0], [1, 1, 0], [1, 1, 1]],
+};
+const P = {
+  surface: "neovius", preset: "single", twist: 28, taper: 0.10, sway: 0.35, seed: 7,
+  lxy: 7.2, lz: 10, zc: 1.3, open: 1, pull: 1.15, layers: true, person: true, cut: 0,
+};
+function config() {
+  const k = P.lxy / 7.2, kz = P.lz / 10;
+  return {
+    surface: P.surface,
+    cell_m: [P.lxy, P.lxy, P.lz],
+    chamber_centre_m: P.zc,
+    pods: PRESETS[P.preset],
+    envelope: {
+      radius_m: [r2(3.95 * k * P.open), r2(3.95 * k * P.open), r2(5.1 * kz * P.open)],
+      plan_exponent: P.pull, vertical_exponent: 2.6, rim_round_m: 0.35,
+      pod_blend_m: 0.8, link_radius_m: r2(1.9 * k), link_floor_m: 0.65,
+    },
+    organic: { twist_deg: P.twist, taper: P.taper, sway_m: P.sway, seed: P.seed },
+    sheet: { base_m: 0.10, top_m: 0.06, rim_extra_m: 0.05 },
+    printer: { build_volume_m: [2.0, 2.0, 1.5], layer_m: 0.012, material: "rPETG", density_kg_m3: 1270 },
+  };
+}
+function r2(x) { return Math.round(x * 100) / 100; }
+
+// ---------------------------------------------------------------- three.js
+const stage = document.getElementById("stage");
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.localClippingEnabled = true;
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+stage.prepend(renderer.domElement);
+document.getElementById("loading").remove();
+
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(32, 1, 0.1, 500);
+const controls = new THREE.OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true;
+controls.maxPolarAngle = Math.PI * 0.5;
+
+const hemi = new THREE.HemisphereLight(0xffffff, 0x8f8a80, 0.55);
+const sun = new THREE.DirectionalLight(0xffffff, 0.8);
+sun.castShadow = true;
+sun.shadow.mapSize.set(2048, 2048);
+sun.shadow.bias = -0.0005;
+sun.shadow.normalBias = 0.03;
+scene.add(hemi, sun, sun.target);
+
+const groundMat = new THREE.MeshStandardMaterial({ roughness: 1 });
+const ground = new THREE.Mesh(new THREE.CircleGeometry(120, 64), groundMat);
+ground.rotation.x = -Math.PI / 2;
+ground.receiveShadow = true;
+scene.add(ground);
+
+const cutPlane = new THREE.Plane(new THREE.Vector3(0, 0, -1), 1e6);
+const U = { uSkin: { value: new THREE.Color() }, uCore: { value: new THREE.Color() }, uLayer: { value: 0.048 }, uLayersOn: { value: 1 } };
+const mat = new THREE.MeshStandardMaterial({ side: THREE.DoubleSide, roughness: 0.78, metalness: 0, clippingPlanes: [cutPlane] });
+mat.extensions = { derivatives: true };
+mat.onBeforeCompile = (sh) => {
+  Object.assign(sh.uniforms, U);
+  sh.vertexShader = sh.vertexShader
+    .replace("#include <common>", "#include <common>\nvarying vec3 vWorldP;")
+    .replace("#include <project_vertex>", "#include <project_vertex>\nvWorldP = (modelMatrix * vec4(transformed, 1.0)).xyz;");
+  sh.fragmentShader = sh.fragmentShader
+    .replace("#include <common>", "#include <common>\nvarying vec3 vWorldP;\nuniform vec3 uSkin;\nuniform vec3 uCore;\nuniform float uLayer;\nuniform float uLayersOn;")
+    .replace("#include <color_fragment>", `#include <color_fragment>
+      diffuseColor.rgb = gl_FrontFacing ? uSkin : uCore;
+      float lz = vWorldP.y / uLayer;
+      float fw = fwidth(lz);
+      float band = abs(fract(lz) - 0.5) * 2.0;
+      float groove = smoothstep(0.55 - fw, 0.55 + fw, band);
+      float fade = clamp(1.0 - fw * 1.2, 0.0, 1.0);
+      diffuseColor.rgb *= mix(1.0, 1.0 - 0.13 * groove, uLayersOn * fade);`);
+};
+let mesh = null;
+
+// people: simple figures, 1.75 m
+function figure(sitting) {
+  const g = new THREE.Group();
+  const m = new THREE.MeshStandardMaterial({ color: 0x34383d, roughness: 0.85 });
+  const body = new THREE.Mesh(new THREE.CylinderGeometry(0.17, 0.13, sitting ? 0.75 : 1.42, 14), m);
+  body.position.y = sitting ? 0.42 : 0.71;
+  const head = new THREE.Mesh(new THREE.SphereGeometry(0.12, 14, 10), m);
+  head.position.y = sitting ? 0.92 : 1.63;
+  for (const o of [body, head]) { o.castShadow = true; g.add(o); }
+  return g;
+}
+const people = new THREE.Group();
+scene.add(people);
+
+const css = (n) => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+const col = (n) => new THREE.Color(css(n));
+function applyTheme() {
+  const top = col("--scene-top"), bot = col("--scene");
+  const c = document.createElement("canvas"); c.width = 2; c.height = 256;
+  const g = c.getContext("2d"); const grd = g.createLinearGradient(0, 0, 0, 256);
+  grd.addColorStop(0, "#" + top.getHexString()); grd.addColorStop(1, "#" + bot.getHexString());
+  g.fillStyle = grd; g.fillRect(0, 0, 2, 256);
+  scene.background = new THREE.CanvasTexture(c);
+  groundMat.color = col("--ground");
+  U.uSkin.value.copy(col("--skin"));
+  U.uCore.value.copy(col("--core"));
+}
+applyTheme();
+window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", applyTheme);
+new MutationObserver(applyTheme).observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
+
+function resize() {
+  const w = stage.clientWidth, h = stage.clientHeight;
+  renderer.setSize(w, h, false);
+  camera.aspect = w / Math.max(h, 1);
+  camera.updateProjectionMatrix();
+}
+new ResizeObserver(resize).observe(stage);
+(function loop() { controls.update(); renderer.render(scene, camera); requestAnimationFrame(loop); })();
+
+// ---------------------------------------------------------------- worker
+const worker = new Worker(URL.createObjectURL(new Blob([`(${workerMain.toString()})()`], { type: "text/javascript" })));
+let reqId = 0, pending = false, queued = false, framedKey = "";
+function rebuild() {
+  if (pending) { queued = true; return; }
+  pending = true; queued = false;
+  document.getElementById("busy").hidden = false;
+  worker.postMessage({ id: ++reqId, cfg: config() });
+  updateConfigText();
+}
+worker.onmessage = (ev) => {
+  pending = false;
+  document.getElementById("busy").hidden = true;
+  if (queued) { rebuild(); }
+  show(ev.data);
+};
+
+function show(r) {
+  const g = new THREE.BufferGeometry();
+  g.setAttribute("position", new THREE.BufferAttribute(r.pos, 3));
+  g.setAttribute("normal", new THREE.BufferAttribute(r.nrm, 3));
+  g.setIndex(new THREE.BufferAttribute(r.ind, 1));
+  if (mesh) { scene.remove(mesh); mesh.geometry.dispose(); }
+  mesh = new THREE.Mesh(g, mat);
+  mesh.castShadow = true; mesh.receiveShadow = true;
+  scene.add(mesh);
+
+  // scene coords: x, z(up), -y
+  const cx = (r.bmin[0] + r.bmax[0]) / 2, cy = (r.bmin[1] + r.bmax[1]) / 2;
+  const W = r.bbox[0], D = r.bbox[1], H = r.bbox[2];
+  const rad = Math.hypot(W, D, H) * 0.75 + 4;
+  sun.position.set(cx + rad * 0.8, H + rad * 1.1, -cy + rad * 0.9);
+  sun.target.position.set(cx, 0, -cy);
+  Object.assign(sun.shadow.camera, { left: -rad, right: rad, top: rad, bottom: -rad, near: 0.5, far: rad * 4 });
+  sun.shadow.camera.updateProjectionMatrix();
+  ground.position.set(cx, 0, -cy);
+
+  const key = P.preset + "|" + Math.round(W) + "|" + Math.round(H);
+  if (key !== framedKey) {
+    framedKey = key;
+    controls.target.set(cx, H * 0.4, -cy);
+    const d = Math.max(W, D, H) * 3.1 + 6;
+    camera.position.set(cx + d * 0.6, H * 0.4 + d * 0.22, -cy + d * 0.76);
+    controls.update();
+  }
+  placePeople(r);
+  facts(r);
+  updateCut();
+}
+
+function placePeople(r) {
+  people.clear();
+  const cfg = config();
+  const [Lx, Ly, Lz] = cfg.cell_m;
+  const pods = cfg.pods;
+  const p0 = pods[0];
+  const standing = figure(false);
+  standing.position.set(p0[0] * Lx + 0.6, 0, -(p0[1] * Ly - 0.4));
+  people.add(standing);
+  const out = figure(false);
+  out.position.set(r.bmax[0] + 1.6, 0, -(r.bmin[1] + 1.2));
+  people.add(out);
+  const up = r.chambers.find((c) => c.pod[2] > 0);
+  if (up) {
+    const s = figure(true);
+    s.position.set(up.pod[0] * Lx + 0.4, up.floor + 0.05, -(up.pod[1] * Ly + 0.3));
+    people.add(s);
+  }
+  people.visible = P.person;
+}
+
+function facts(r) {
+  const fmt = (x, d = 1) => x.toLocaleString("en-GB", { minimumFractionDigits: d, maximumFractionDigits: d });
+  const ok = Math.min(...r.bbox) >= 6;
+  const rows = [
+    ["Boundary", `${fmt(r.bbox[0])} × ${fmt(r.bbox[1])} × ${fmt(r.bbox[2])} m`, true],
+    ["Minimum 6 × 6 × 6 m", `<span class="pill ${ok ? "ok" : "bad"}">${ok ? "met" : "below"}</span>`],
+    ["Pods", `${config().pods.length}`],
+    ...r.chambers.map((c) => [`&ensp;· chamber ${c.pod.join(",")}`,
+      c.clear === null ? `open to the sky` : `${fmt(c.clear)} m clear${c.floor > 0.05 ? ` from ${fmt(c.floor)} m` : ""}`]),
+    ["Sheet area", `${fmt(r.area, 0)} m²`],
+    ["Printed mass (rPETG)", `≈ ${fmt(r.mass / 1000)} t`, true],
+    ["Print parts (2 × 2 × 1.5 m)", `≈ ${r.parts}`],
+  ];
+  document.getElementById("facts").innerHTML = rows.map(([k, v, big]) => `<dt>${k}</dt><dd class="${big ? "big" : ""}">${v}</dd>`).join("");
+  document.getElementById("facts-note").textContent =
+    `Live preview of the mid-surface (${Math.round(r.voxel * 1000)} mm grid, ${Math.round(r.ms)} ms). ` +
+    `Sheet 100 mm at the ground to 60 mm at the crown, plus 50 mm along free rims. ` +
+    `organic_pavilion.py builds the watertight print files from the same settings.`;
+  document.getElementById("hud-l").textContent = `${P.surface.replace("_", " ")} · ${config().pods.length} pod(s) · twist ${P.twist}° per storey`;
+}
+
+function updateCut() {
+  const out = document.getElementById("cut-o");
+  if (!mesh || !P.cut) { cutPlane.constant = 1e6; out.textContent = "none"; return; }
+  mesh.geometry.computeBoundingBox();
+  const bb = mesh.geometry.boundingBox;  // scene z runs from -north to +south
+  const z = bb.max.z - (bb.max.z - bb.min.z) * P.cut / 100;
+  cutPlane.normal.set(0, 0, -1);
+  cutPlane.constant = z;
+  out.textContent = `${P.cut}%`;
+}
+
+function updateConfigText() {
+  const c = config();
+  document.getElementById("cfg").textContent = JSON.stringify(c, null, 2);
+}
+
+// ---------------------------------------------------------------- controls
+function bindChips(id, attr, keyName) {
+  document.querySelectorAll(`#${id} button`).forEach((b) => b.onclick = () => {
+    P[keyName] = b.dataset[attr];
+    document.querySelectorAll(`#${id} button`).forEach((x) => x.setAttribute("aria-pressed", String(x === b)));
+    rebuild();
+  });
+}
+bindChips("presets", "p", "preset");
+bindChips("surfaces", "s", "surface");
+
+const SL = {
+  twist: (v) => `${v}°`, taper: (v) => `${Math.round(v * 100)}%`, sway: (v) => `${(+v).toFixed(2)} m`,
+  lxy: (v) => `${(+v).toFixed(1)} m`, lz: (v) => `${(+v).toFixed(1)} m`, zc: (v) => `${(+v).toFixed(2)} m`,
+  open: (v) => `${Math.round(v * 100)}%`, pull: (v) => (+v).toFixed(2),
+};
+let tmr = null;
+for (const id of Object.keys(SL)) {
+  const el = document.getElementById(id);
+  const o = document.getElementById(id + "-o");
+  o.textContent = SL[id](el.value);
+  el.oninput = () => {
+    P[id] = +el.value; o.textContent = SL[id](el.value);
+    clearTimeout(tmr); tmr = setTimeout(rebuild, 90);
+  };
+}
+document.getElementById("reseed").onclick = () => {
+  P.seed = (P.seed * 7 + 13) % 997;
+  document.getElementById("seed-o").textContent = `pattern ${P.seed}`;
+  rebuild();
+};
+document.getElementById("seed-o").textContent = `pattern ${P.seed}`;
+document.getElementById("layers").onchange = (e) => { U.uLayersOn.value = e.target.checked ? 1 : 0; };
+document.getElementById("person").onchange = (e) => { P.person = e.target.checked; people.visible = P.person; };
+document.getElementById("cut").oninput = (e) => { P.cut = +e.target.value; updateCut(); };
+document.getElementById("copy").onclick = () => {
+  const o = document.getElementById("copy-o");
+  const text = JSON.stringify(config(), null, 2);
+  navigator.clipboard.writeText(text).then(() => { o.textContent = "Copied. Save as my.json, then: python organic_pavilion.py -c my.json"; },
+    () => { const r = document.createRange(); r.selectNodeContents(document.getElementById("cfg")); const s = getSelection(); s.removeAllRanges(); s.addRange(r); o.textContent = "Selected. Press Ctrl/Cmd + C to copy."; });
+};
+
+resize();
+rebuild();
+</script>
