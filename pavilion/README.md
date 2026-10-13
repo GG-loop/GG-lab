@@ -63,3 +63,11 @@ The main parameters are in `DEFAULT_CONFIG` at the top of `pavilion.py`: surface
 4. **Connections.** The connector points are computed, but the connector geometry is not modelled yet: bosses with inserts on the lands, or printed dovetails.
 5. **Weather / enclosure.** The surface is porous and works as a shading screen, not an enclosure. If you need rain cover, one option is to fill the roof cells on one side of the sheet (the gyroid splits space into two labyrinths) or to add a membrane.
 6. **Foundations.** The ground-level modules need a footing plate per module (8 for the default).
+
+## Interactive viewer
+
+`viewer/index.html` is a self-contained 3D configurator. It uses the same layout rules as `pavilion.py`, and you can change the extent, surface, entrances and section cut live. It also shows one printable module with its print-part cuts and connector points. Rebuild it after changing the geometry:
+
+```bash
+python build_viewer.py   # embeds the module meshes into viewer/template.html -> viewer/index.html
+```

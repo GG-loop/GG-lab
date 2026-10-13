@@ -1,0 +1,677 @@
+<title>TPMS Pavilion Configurator</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Semi+Condensed:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: drawing-table split. Controls and quantities on a narrow sheet at the left,
+   the model fills the rest. Stacks to model-over-controls on phones. */
+:root {
+  --bg: #e9ecee;
+  --sheet: #f7f8f8;
+  --ink: #172026;
+  --muted: #56646c;
+  --line: #d0d6da;
+  --accent: #1d6b74;
+  --accent-ink: #ffffff;
+  --scene: #e3e7ea;
+  --ground: #d5dbdf;
+  --grid: #b9c2c8;
+  --polymer: #ece9e2;
+  --c-corner: #2c4860;
+  --c-wall: #7da2b8;
+  --c-column: #3f5566;
+  --c-roofedge: #a9792b;
+  --c-roof: #d9b462;
+  --t-lo: #f1e3b0;
+  --t-hi: #2b5f86;
+  --font-ui: "Barlow Semi Condensed", "Arial Narrow", "Helvetica Neue", Arial, sans-serif;
+  --font-data: "JetBrains Mono", ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #101518; --sheet: #172024; --ink: #e2e8eb; --muted: #95a3ab; --line: #2b363c;
+    --accent: #5db6bf; --accent-ink: #0c1214; --scene: #141b1f; --ground: #1b2428; --grid: #2f3c43;
+    --polymer: #d9d6cf; --c-corner: #5f88a8; --c-wall: #9bc0d4; --c-column: #7c93a3;
+    --c-roofedge: #c9973f; --c-roof: #e8c878; --t-lo: #f1e3b0; --t-hi: #4f8fc0;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #101518; --sheet: #172024; --ink: #e2e8eb; --muted: #95a3ab; --line: #2b363c;
+  --accent: #5db6bf; --accent-ink: #0c1214; --scene: #141b1f; --ground: #1b2428; --grid: #2f3c43;
+  --polymer: #d9d6cf; --c-corner: #5f88a8; --c-wall: #9bc0d4; --c-column: #7c93a3;
+  --c-roofedge: #c9973f; --c-roof: #e8c878; --t-lo: #f1e3b0; --t-hi: #4f8fc0;
+  color-scheme: dark;
+}
+html, body { height: 100%; }
+body { background: var(--bg); color: var(--ink); font-family: var(--font-ui); font-size: 15px; }
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+
+.app {
+  height: 100%;
+  display: grid;
+  grid-template-columns: minmax(280px, 330px) minmax(0, 1fr);
+  gap: 16px;
+  padding: 16px;
+}
+.sheet {
+  min-width: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  padding-right: 4px;
+}
+.stage {
+  position: relative;
+  min-width: 0;
+  min-height: 0;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  overflow: hidden;
+  background: var(--scene);
+}
+.stage canvas { display: block; width: 100%; height: 100%; touch-action: none; }
+
+header h1 {
+  margin: 0;
+  font-weight: 700;
+  font-size: 1.65rem;
+  line-height: 1.05;
+  letter-spacing: -0.01em;
+  text-wrap: balance;
+}
+header p { margin: 6px 0 0; color: var(--muted); line-height: 1.4; max-width: 34ch; }
+
+.group { display: flex; flex-direction: column; gap: 10px; }
+.label {
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin: 0;
+}
+
+.seg { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; }
+.seg.three { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.seg button {
+  font: inherit;
+  font-weight: 500;
+  padding: 7px 8px;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  background: var(--sheet);
+  color: var(--ink);
+  cursor: pointer;
+}
+.seg button[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+.seg button:focus-visible, input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+.dim { display: grid; grid-template-columns: 1.4em minmax(0, 1fr) 4.2em; align-items: center; gap: 10px; }
+.dim span:first-child { font-family: var(--font-data); color: var(--muted); }
+.dim output { font-family: var(--font-data); font-variant-numeric: tabular-nums; text-align: right; }
+input[type="range"] { width: 100%; accent-color: var(--accent); }
+
+.checks { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; }
+.checks label {
+  display: flex; align-items: center; justify-content: center; gap: 5px;
+  padding: 6px 4px; border: 1px solid var(--line); border-radius: 4px; background: var(--sheet); cursor: pointer;
+}
+.checks input { accent-color: var(--accent); margin: 0; }
+.toggle { display: flex; align-items: center; gap: 8px; cursor: pointer; }
+.toggle input { accent-color: var(--accent); margin: 0; }
+
+.qty { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 6px 12px; margin: 0; }
+.qty dt { color: var(--muted); }
+.qty dd { margin: 0; font-family: var(--font-data); font-variant-numeric: tabular-nums; text-align: right; }
+.qty .big { font-size: 1.05rem; color: var(--ink); font-weight: 500; }
+.note { color: var(--muted); font-size: 0.85rem; line-height: 1.4; margin: 0; }
+.warn { color: var(--c-roofedge); }
+
+.legend { display: flex; flex-wrap: wrap; gap: 6px 14px; }
+.legend span { display: inline-flex; align-items: center; gap: 6px; font-size: 0.9rem; }
+.legend i { width: 12px; height: 12px; border-radius: 2px; display: inline-block; }
+.ramp { height: 10px; border-radius: 2px; background: linear-gradient(90deg, var(--t-lo), var(--t-hi)); }
+.ramp-labels { display: flex; justify-content: space-between; font-family: var(--font-data); font-size: 0.78rem; color: var(--muted); }
+
+.hud {
+  position: absolute; left: 12px; bottom: 12px; right: 12px;
+  display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px; pointer-events: none;
+  font-family: var(--font-data); font-size: 0.78rem; color: var(--muted);
+}
+.tip {
+  position: absolute; pointer-events: none; padding: 7px 9px; border-radius: 4px;
+  background: var(--sheet); border: 1px solid var(--line); color: var(--ink);
+  font-size: 0.85rem; line-height: 1.35; white-space: nowrap; transform: translate(12px, 12px);
+}
+.tip b { font-weight: 600; }
+.tip code { font-family: var(--font-data); font-size: 0.8rem; }
+.loading { position: absolute; inset: 0; display: grid; place-items: center; color: var(--muted); }
+
+@media (max-width: 760px) {
+  .app { height: auto; grid-template-columns: minmax(0, 1fr); grid-template-rows: auto; }
+  .stage { order: -1; height: 62vh; min-height: 340px; }
+  .sheet { overflow: visible; padding-right: 0; }
+}
+@media (prefers-reduced-motion: reduce) { * { scroll-behavior: auto !important; } }
+</style>
+
+<div class="app">
+  <aside class="sheet" aria-label="Pavilion settings">
+    <header>
+      <h1>TPMS Pavilion</h1>
+      <p>Each 1.5 m cube is one period of a minimal surface, so modules tile without seams and the pavilion grows in whole modules. Minimum boundary 6 × 6 × 6 m.</p>
+    </header>
+
+    <div class="group">
+      <p class="label">View</p>
+      <div class="seg" id="view-seg">
+        <button type="button" id="view-pavilion" aria-pressed="true">Pavilion</button>
+        <button type="button" id="view-module" aria-pressed="false">Printed module</button>
+      </div>
+    </div>
+
+    <div class="group">
+      <p class="label">Minimal surface</p>
+      <div class="seg" id="surface-seg">
+        <button type="button" data-s="gyroid" aria-pressed="true">Gyroid</button>
+        <button type="button" data-s="schwarz_p" aria-pressed="false">Schwarz P</button>
+        <button type="button" data-s="diamond" aria-pressed="false">Diamond</button>
+        <button type="button" data-s="neovius" aria-pressed="false">Neovius</button>
+      </div>
+    </div>
+
+    <div class="group" id="pav-controls">
+      <p class="label">Extent (modules of 1.5 m)</p>
+      <label class="dim"><span>X</span><input type="range" id="nx" min="4" max="14" value="4"><output id="nx-o">6.0 m</output></label>
+      <label class="dim"><span>Y</span><input type="range" id="ny" min="4" max="14" value="4"><output id="ny-o">6.0 m</output></label>
+      <label class="dim"><span>Z</span><input type="range" id="nz" min="4" max="8" value="4"><output id="nz-o">6.0 m</output></label>
+
+      <p class="label" style="margin-top:6px">Entrances, 3 m high</p>
+      <div class="checks">
+        <label><input type="checkbox" id="e-south" checked>S</label>
+        <label><input type="checkbox" id="e-north" checked>N</label>
+        <label><input type="checkbox" id="e-west">W</label>
+        <label><input type="checkbox" id="e-east">E</label>
+      </div>
+      <label class="dim"><span>W</span><input type="range" id="ew" min="1" max="6" value="2"><output id="ew-o">3.0 m</output></label>
+
+      <p class="label" style="margin-top:6px">Display</p>
+      <div class="seg three" id="colour-seg">
+        <button type="button" data-c="role" aria-pressed="true">Role</button>
+        <button type="button" data-c="type" aria-pressed="false">Print type</button>
+        <button type="button" data-c="plain" aria-pressed="false">Material</button>
+      </div>
+      <label class="dim"><span>✂</span><input type="range" id="cut" min="0" max="100" value="0" aria-label="Section cut from the south"><output id="cut-o">no cut</output></label>
+      <label class="toggle"><input type="checkbox" id="person" checked> Show a 1.75 m person for scale</label>
+    </div>
+
+    <div class="group" id="legend-box">
+      <p class="label">Legend</p>
+      <div class="legend" id="legend-role">
+        <span><i style="background:var(--c-corner)"></i>Corner</span>
+        <span><i style="background:var(--c-wall)"></i>Wall</span>
+        <span><i style="background:var(--c-column)"></i>Column</span>
+        <span><i style="background:var(--c-roofedge)"></i>Roof edge</span>
+        <span><i style="background:var(--c-roof)"></i>Roof</span>
+      </div>
+      <div id="legend-type" hidden>
+        <div class="ramp"></div>
+        <div class="ramp-labels"><span id="t-lo-l">50 mm · ground</span><span id="t-hi-l">30 mm · roof</span></div>
+      </div>
+    </div>
+
+    <div class="group">
+      <p class="label">Quantities</p>
+      <dl class="qty" id="qty"></dl>
+      <p class="note" id="qty-note"></p>
+    </div>
+  </aside>
+
+  <main class="stage" id="stage">
+    <div class="loading" id="loading">Loading 3D viewer…</div>
+    <div class="hud"><span id="hud-l"></span><span>drag to orbit · scroll to zoom · right-drag to pan</span></div>
+    <div class="tip" id="tip" hidden></div>
+  </main>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+<script>
+const DATA = /*__DATA__*/null;
+const M = DATA.module_size_m;
+const D = DATA.defaults;
+const ROLE_NAMES = { corner: "Corner", wall: "Wall", column: "Column", roof_edge: "Roof edge", roof: "Roof" };
+
+// ---------------------------------------------------------------- state
+const state = {
+  view: "pavilion", surface: "gyroid", colour: "role",
+  n: [4, 4, 4], doors: { south: true, north: true, west: false, east: false },
+  doorW: 2, cut: 0, person: true,
+};
+
+// ---------------------------------------------------------------- layout (mirrors pavilion.py)
+function layout() {
+  const [nx, ny, nz] = state.n;
+  const d = D.envelope_depth_modules;
+  const doors = new Set();
+  for (const side of ["south", "north", "west", "east"]) {
+    if (!state.doors[side]) continue;
+    const along = (side === "south" || side === "north") ? nx : ny;
+    const w = Math.min(state.doorW, along - 2);
+    const start = Math.floor((along - w) / 2);
+    for (let t = start; t < start + w; t++) {
+      for (let k = 0; k < Math.min(2, nz - 1); k++) {
+        const c = side === "south" ? [t, 0, k] : side === "north" ? [t, ny - 1, k]
+                : side === "west" ? [0, t, k] : [nx - 1, t, k];
+        doors.add(c.join());
+      }
+    }
+  }
+  const span = D.max_roof_span_modules;
+  const lines = (count) => {
+    const clear = count - 2 * d;
+    if (clear <= span) return [];
+    const bays = Math.ceil((clear + 1) / (span + 1));
+    const step = (clear + 1) / bays;
+    const out = [];
+    for (let b = 1; b < bays; b++) out.push(d - 1 + pyRound(step * b));
+    return out;
+  };
+  let xi = lines(nx), yj = lines(ny);
+  if (xi.length || yj.length) {
+    if (!xi.length) xi = [Math.floor(nx / 2)];
+    if (!yj.length) yj = [Math.floor(ny / 2)];
+  }
+  const cols = new Set();
+  for (const i of xi) for (const j of yj) for (let k = 0; k < nz - d; k++) cols.add([i, j, k].join());
+
+  const cells = [];
+  for (let k = 0; k < nz; k++) for (let j = 0; j < ny; j++) for (let i = 0; i < nx; i++) {
+    const key = [i, j, k].join();
+    if (doors.has(key)) continue;
+    const edge = Math.min(i, nx - 1 - i, j, ny - 1 - j) < d;
+    const roof = k >= nz - d;
+    let role = null;
+    if (roof && edge) role = "roof_edge";
+    else if (roof) role = "roof";
+    else if (edge) role = (Math.min(i, nx - 1 - i) < d && Math.min(j, ny - 1 - j) < d) ? "corner" : "wall";
+    else if (cols.has(key)) role = "column";
+    if (role) cells.push({ i, j, k, role });
+  }
+  return cells;
+}
+// Python's round() is banker's rounding; keep the layouts identical.
+function pyRound(x) {
+  const f = Math.floor(x), r = x - f;
+  if (Math.abs(r - 0.5) < 1e-9) return f % 2 === 0 ? f : f + 1;
+  return Math.round(x);
+}
+function thickness(k) {
+  const nz = state.n[2], t = D.sheet_thickness_m;
+  return nz === 1 ? t.base : t.base + (t.top - t.base) * k / (nz - 1);
+}
+
+// ---------------------------------------------------------------- geometry
+function b64(s) { const bin = atob(s); const u = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) u[i] = bin.charCodeAt(i); return u.buffer; }
+function decode(pack) {
+  const q = new Uint16Array(b64(pack.pos));
+  const pos = new Float32Array(q.length);
+  for (let i = 0; i < q.length; i++) pos[i] = q[i] / 65535 * M;
+  const idx = pack.idx32 ? new Uint32Array(b64(pack.idx)) : new Uint16Array(b64(pack.idx));
+  const g = new THREE.BufferGeometry();
+  // Scene is Y-up; the generator is Z-up. Swap so modules stand the right way.
+  const sw = new Float32Array(pos.length);
+  for (let i = 0; i < pos.length; i += 3) { sw[i] = pos[i]; sw[i + 1] = pos[i + 2]; sw[i + 2] = -pos[i + 1]; }
+  g.setAttribute("position", new THREE.BufferAttribute(sw, 3));
+  g.setIndex(new THREE.BufferAttribute(idx, 1));
+  g.computeVertexNormals();
+  return g;
+}
+const geoCache = {};
+function geo(surface, kind) {
+  const key = surface + kind;
+  return geoCache[key] || (geoCache[key] = decode(DATA.surfaces[surface][kind]));
+}
+// generator (x, y, z) in metres -> scene coordinates
+const toScene = (x, y, z) => new THREE.Vector3(x, z, -y);
+
+// ---------------------------------------------------------------- theme
+const css = (name) => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+function colourOf(name) { return new THREE.Color(css(name)); }
+
+// ---------------------------------------------------------------- scene
+const stage = document.getElementById("stage");
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.localClippingEnabled = true;
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+stage.prepend(renderer.domElement);
+document.getElementById("loading").remove();
+
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(35, 1, 0.05, 400);
+const controls = new THREE.OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true;
+controls.maxPolarAngle = Math.PI * 0.495;
+
+scene.add(new THREE.HemisphereLight(0xffffff, 0x8a8f92, 0.75));
+const sun = new THREE.DirectionalLight(0xffffff, 0.85);
+sun.castShadow = true;
+sun.shadow.mapSize.set(2048, 2048);
+sun.shadow.bias = -0.0004;
+scene.add(sun, sun.target);
+
+const groundMat = new THREE.MeshStandardMaterial({ roughness: 1 });
+const ground = new THREE.Mesh(new THREE.PlaneGeometry(400, 400), groundMat);
+ground.rotation.x = -Math.PI / 2;
+ground.receiveShadow = true;
+scene.add(ground);
+let grid = null;
+
+const cutPlane = new THREE.Plane(new THREE.Vector3(0, 0, -1), 0);
+const surfMat = new THREE.MeshStandardMaterial({
+  side: THREE.DoubleSide, roughness: 0.62, metalness: 0.0, clippingPlanes: [cutPlane],
+});
+const solidMat = new THREE.MeshStandardMaterial({ roughness: 0.55, metalness: 0.0 });
+
+const pavilion = new THREE.Group();
+const moduleView = new THREE.Group();
+scene.add(pavilion, moduleView);
+let inst = null, cells = [];
+
+// A plain scale figure: 1.75 m, shoulders 0.45 m.
+const person = new THREE.Group();
+{
+  const m = new THREE.MeshStandardMaterial({ color: 0x3a3f44, roughness: 0.8 });
+  const body = new THREE.Mesh(new THREE.CylinderGeometry(0.17, 0.13, 1.42, 16), m);
+  body.position.y = 0.71;
+  const head = new THREE.Mesh(new THREE.SphereGeometry(0.12, 16, 12), m);
+  head.position.y = 1.63;
+  for (const o of [body, head]) { o.castShadow = true; person.add(o); }
+}
+scene.add(person);
+
+function rebuildPavilion() {
+  if (inst) { pavilion.remove(inst); inst.dispose(); }
+  cells = layout();
+  inst = new THREE.InstancedMesh(geo(state.surface, "mid"), surfMat, cells.length);
+  inst.castShadow = true; inst.receiveShadow = true;
+  const m4 = new THREE.Matrix4();
+  cells.forEach((c, n) => {
+    m4.makeTranslation(c.i * M, c.k * M, -c.j * M);
+    inst.setMatrixAt(n, m4);
+  });
+  pavilion.add(inst);
+  recolour();
+  placeGround();
+  updateCut();
+  updateQuantities();
+}
+
+function recolour() {
+  if (!inst) return;
+  const role = { corner: colourOf("--c-corner"), wall: colourOf("--c-wall"), column: colourOf("--c-column"),
+                 roof_edge: colourOf("--c-roofedge"), roof: colourOf("--c-roof") };
+  const lo = colourOf("--t-lo"), hi = colourOf("--t-hi"), plain = colourOf("--polymer");
+  const nz = state.n[2];
+  const c = new THREE.Color();
+  cells.forEach((cell, n) => {
+    if (state.colour === "role") c.copy(role[cell.role]);
+    else if (state.colour === "type") c.copy(lo).lerp(hi, nz > 1 ? cell.k / (nz - 1) : 0);
+    else c.copy(plain);
+    inst.setColorAt(n, c);
+  });
+  inst.instanceColor.needsUpdate = true;
+  solidMat.color.copy(plain);
+}
+
+function placeGround() {
+  const [nx, ny, nz] = state.n;
+  const W = nx * M, Dp = ny * M, H = nz * M;
+  if (grid) scene.remove(grid);
+  const size = Math.ceil((Math.max(W, Dp) + 12) / M) * M;
+  grid = new THREE.GridHelper(size, Math.round(size / M), colourOf("--grid"), colourOf("--grid"));
+  grid.position.set(W / 2, 0.002, -Dp / 2);
+  scene.add(grid);
+  sun.position.set(W / 2 + 14, H + 16, -Dp / 2 + 18);
+  sun.target.position.set(W / 2, 0, -Dp / 2);
+  const r = Math.max(W, Dp, H) * 0.9 + 3;
+  Object.assign(sun.shadow.camera, { left: -r, right: r, top: r, bottom: -r, near: 1, far: 120 });
+  sun.shadow.camera.updateProjectionMatrix();
+  // person stands just inside the first entrance, or the centre of the room
+  const door = state.doors.south ? [W / 2 + 0.4, -1.1] : [W / 2 + 0.4, -Dp / 2];
+  person.position.set(door[0], 0, door[1]);
+}
+
+let framedFor = "";
+function frame(force) {
+  const key = state.view + state.n.join();
+  if (!force && key === framedFor) return;
+  framedFor = key;
+  if (state.view === "module") {
+    controls.target.set(M / 2, M / 2, -M / 2);
+    camera.position.set(M * 2.6, M * 2.0, M * 2.2);
+  } else {
+    const [nx, ny, nz] = state.n;
+    const W = nx * M, Dp = ny * M, H = nz * M;
+    const r = Math.hypot(W, Dp, H);
+    controls.target.set(W / 2, H * 0.38, -Dp / 2);
+    camera.position.set(W / 2 - r * 1.05, H * 0.45 + r * 0.7, -Dp / 2 + r * 1.55);
+  }
+  controls.update();
+}
+
+// ---------------------------------------------------------------- printed module view
+function rebuildModule() {
+  moduleView.clear();
+  const s = DATA.surfaces[state.surface];
+  const mesh = new THREE.Mesh(geo(state.surface, "solid"), solidMat);
+  mesh.castShadow = true; mesh.receiveShadow = true;
+  moduleView.add(mesh);
+
+  // module box and print-part split planes (build volume)
+  const lineMat = new THREE.LineBasicMaterial({ color: colourOf("--accent") });
+  const box = new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.BoxGeometry(M, M, M)), lineMat);
+  box.position.set(M / 2, M / 2, -M / 2);
+  moduleView.add(box);
+  const splits = D.build_volume_m.map((b) => Math.max(1, Math.ceil(M / b - 1e-9)));
+  const dash = new THREE.LineDashedMaterial({ color: colourOf("--accent"), dashSize: 0.05, gapSize: 0.04 });
+  const pts = [];
+  const seg = (a, b) => pts.push(toScene(...a), toScene(...b));
+  for (let s0 = 1; s0 < splits[0]; s0++) { const x = s0 * M / splits[0];
+    seg([x, 0, 0], [x, M, 0]); seg([x, M, 0], [x, M, M]); seg([x, M, M], [x, 0, M]); seg([x, 0, M], [x, 0, 0]); }
+  for (let s1 = 1; s1 < splits[1]; s1++) { const y = s1 * M / splits[1];
+    seg([0, y, 0], [M, y, 0]); seg([M, y, 0], [M, y, M]); seg([M, y, M], [0, y, M]); seg([0, y, M], [0, y, 0]); }
+  for (let s2 = 1; s2 < splits[2]; s2++) { const z = s2 * M / splits[2];
+    seg([0, 0, z], [M, 0, z]); seg([M, 0, z], [M, M, z]); seg([M, M, z], [0, M, z]); seg([0, M, z], [0, 0, z]); }
+  const splitLines = new THREE.LineSegments(new THREE.BufferGeometry().setFromPoints(pts), dash);
+  splitLines.computeLineDistances();
+  moduleView.add(splitLines);
+
+  // connector points on the three faces through the origin (x = 0, y = 0, z = 0)
+  const dotMat = new THREE.MeshStandardMaterial({ color: colourOf("--c-roofedge"), roughness: 0.4 });
+  const dotGeo = new THREE.SphereGeometry(0.022, 12, 8);
+  const faces = { x: (u, v) => [0, u, v], y: (u, v) => [u, 0, v], z: (u, v) => [u, v, 0] };
+  for (const ax of ["x", "y", "z"]) {
+    for (const [u, v] of s.connectors[ax]) {
+      const d = new THREE.Mesh(dotGeo, dotMat);
+      d.position.copy(toScene(...faces[ax](u, v)));
+      moduleView.add(d);
+    }
+  }
+}
+
+// ---------------------------------------------------------------- quantities
+function updateQuantities() {
+  const s = DATA.surfaces[state.surface];
+  const [nx, ny, nz] = state.n;
+  const counts = {};
+  cells.forEach((c) => counts[c.role] = (counts[c.role] || 0) + 1);
+  const levels = new Set(cells.map((c) => c.k));
+  const parts = D.build_volume_m.map((b) => Math.max(1, Math.ceil(M / b - 1e-9))).reduce((a, b) => a * b, 1);
+  const occ = new Set(cells.map((c) => [c.i, c.j, c.k].join()));
+  const per = { x: s.connectors.x.length, y: s.connectors.y.length, z: s.connectors.z.length };
+  let joints = 0, conn = 0;
+  for (const c of cells) {
+    if (occ.has([c.i + 1, c.j, c.k].join())) { joints++; conn += per.x; }
+    if (occ.has([c.i, c.j + 1, c.k].join())) { joints++; conn += per.y; }
+    if (occ.has([c.i, c.j, c.k + 1].join())) { joints++; conn += per.z; }
+  }
+  const mass = cells.reduce((a, c) => a + s.area_m2 * thickness(c.k) * D.density_kg_m3, 0);
+  const footings = cells.filter((c) => c.k === 0).length;
+  const clearX = (nx - 2) * M, clearY = (ny - 2) * M, clearH = (nz - 1) * M;
+  const fmt = (x, d = 1) => x.toLocaleString("en-GB", { minimumFractionDigits: d, maximumFractionDigits: d });
+
+  const rows = [
+    ["Boundary", `${fmt(nx * M)} × ${fmt(ny * M)} × ${fmt(nz * M)} m`, true],
+    ["Interior (clear)", `${fmt(clearX)} × ${fmt(clearY)} m, ${fmt(clearH)} m high`],
+    ["Modules", `${cells.length}`, true],
+    ...Object.keys(ROLE_NAMES).filter((r) => counts[r]).map((r) => [`  ${ROLE_NAMES[r]}`, `${counts[r]}`]),
+    ["Unique print files", `${levels.size}`],
+    [`Print parts (${D.build_volume_m[0]} m bed)`, `${cells.length * parts}`],
+    ["Module joints", `${joints}`],
+    ["Connectors", `≈ ${conn}`],
+    ["Ground footings", `${footings}`],
+    [`Printed mass (${D.material})`, `≈ ${fmt(mass / 1000)} t`, true],
+  ];
+  document.getElementById("qty").innerHTML = rows.map(([k, v, big]) =>
+    `<dt>${k.replace(/^  /, "&ensp;· ")}</dt><dd class="${big ? "big" : ""}">${v}</dd>`).join("");
+  const t = D.sheet_thickness_m;
+  document.getElementById("qty-note").innerHTML =
+    `Sheet graded ${Math.round(t.base * 1000)} mm at ground to ${Math.round(t.top * 1000)} mm at roof, one print type per level. ` +
+    `Mass uses the surface area per module (${fmt(s.area_m2, 2)} m²) × sheet × ${D.density_kg_m3} kg/m³.` +
+    (counts.column ? ` <span class="warn">Span over ${D.max_roof_span_modules * M} m: interior columns added.</span>` : "");
+  document.getElementById("hud-l").textContent =
+    `${state.surface.replace("_", " ")} · ${nx}×${ny}×${nz} modules · ${cells.length} placed`;
+}
+
+function updateModuleQuantities() {
+  const s = DATA.surfaces[state.surface];
+  const t = s.solid_thickness_m;
+  const parts = D.build_volume_m.map((b) => Math.max(1, Math.ceil(M / b - 1e-9)));
+  const fmt = (x, d = 1) => x.toLocaleString("en-GB", { minimumFractionDigits: d, maximumFractionDigits: d });
+  const rows = [
+    ["Module", `${fmt(M)} × ${fmt(M)} × ${fmt(M)} m`, true],
+    ["Sheet (ground level)", `${Math.round(t * 1000)} mm`],
+    ["Surface area", `${fmt(s.area_m2, 2)} m²`],
+    ["Volume", `≈ ${fmt(s.area_m2 * t, 3)} m³`],
+    [`Mass (${D.material})`, `≈ ${Math.round(s.area_m2 * t * D.density_kg_m3)} kg`, true],
+    ["Print parts", `${parts.join(" × ")} = ${parts.reduce((a, b) => a * b, 1)}`],
+    ["Connectors per face", `${s.connectors.x.length} / ${s.connectors.y.length} / ${s.connectors.z.length}`],
+  ];
+  document.getElementById("qty").innerHTML = rows.map(([k, v, big]) =>
+    `<dt>${k}</dt><dd class="${big ? "big" : ""}">${v}</dd>`).join("");
+  document.getElementById("qty-note").textContent =
+    "Dashed lines: cuts that fit each part in the printer's build volume. Dots: dowel or bolt positions where the sheet lands on a neighbouring module (shown on the three faces through the corner).";
+  document.getElementById("hud-l").textContent = `${state.surface.replace("_", " ")} · one printable module`;
+}
+
+function updateCut() {
+  const Dp = state.n[1] * M;
+  // cut plane travels from the south face (scene z = 0) northwards
+  const depth = state.cut / 100 * Dp;
+  cutPlane.constant = state.cut ? -depth : 1e6;
+  cutPlane.normal.set(0, 0, -1);
+  document.getElementById("cut-o").textContent = state.cut ? `${depth.toFixed(1)} m` : "no cut";
+}
+
+// ---------------------------------------------------------------- render loop
+function resize() {
+  const w = stage.clientWidth, h = stage.clientHeight;
+  renderer.setSize(w, h, false);
+  camera.aspect = w / Math.max(h, 1);
+  camera.updateProjectionMatrix();
+}
+new ResizeObserver(resize).observe(stage);
+
+function applyTheme() {
+  scene.background = colourOf("--scene");
+  groundMat.color = colourOf("--ground");
+  if (state.view === "pavilion") { recolour(); placeGround(); } else rebuildModule();
+}
+window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", applyTheme);
+new MutationObserver(applyTheme).observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
+
+(function loop() {
+  controls.update();
+  renderer.render(scene, camera);
+  requestAnimationFrame(loop);
+})();
+
+// ---------------------------------------------------------------- hover
+const tip = document.getElementById("tip");
+const ray = new THREE.Raycaster();
+const mouse = new THREE.Vector2();
+renderer.domElement.addEventListener("pointermove", (e) => {
+  if (state.view !== "pavilion" || e.buttons) { tip.hidden = true; return; }
+  const r = renderer.domElement.getBoundingClientRect();
+  mouse.set(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1);
+  ray.setFromCamera(mouse, camera);
+  const hit = ray.intersectObject(inst).find((h) => !state.cut || h.point.z <= -state.cut / 100 * state.n[1] * M);
+  if (!hit) { tip.hidden = true; return; }
+  const c = cells[hit.instanceId];
+  tip.innerHTML = `<b>${ROLE_NAMES[c.role]}</b> · cell <code>${c.i},${c.j},${c.k}</code><br>` +
+    `print type T${String(c.k + 1).padStart(2, "0")} · sheet ${Math.round(thickness(c.k) * 1000)} mm`;
+  tip.style.left = `${e.clientX - r.left}px`;
+  tip.style.top = `${e.clientY - r.top}px`;
+  tip.hidden = false;
+});
+renderer.domElement.addEventListener("pointerleave", () => { tip.hidden = true; });
+
+// ---------------------------------------------------------------- controls
+function press(groupId, btn) {
+  document.querySelectorAll(`#${groupId} button`).forEach((b) => b.setAttribute("aria-pressed", String(b === btn)));
+}
+function setView(v) {
+  state.view = v;
+  press("view-seg", document.getElementById(`view-${v}`));
+  const pav = v === "pavilion";
+  pavilion.visible = pav; person.visible = pav && state.person; moduleView.visible = !pav;
+  document.getElementById("pav-controls").hidden = !pav;
+  document.getElementById("legend-box").hidden = !pav;
+  ground.position.y = 0;
+  if (pav) { rebuildPavilion(); grid.visible = true; } else { rebuildModule(); updateModuleQuantities(); if (grid) grid.visible = false; }
+  frame(true);
+}
+document.getElementById("view-pavilion").onclick = () => setView("pavilion");
+document.getElementById("view-module").onclick = () => setView("module");
+
+document.querySelectorAll("#surface-seg button").forEach((b) => b.onclick = () => {
+  state.surface = b.dataset.s; press("surface-seg", b);
+  if (state.view === "pavilion") rebuildPavilion(); else { rebuildModule(); updateModuleQuantities(); }
+});
+document.querySelectorAll("#colour-seg button").forEach((b) => b.onclick = () => {
+  state.colour = b.dataset.c; press("colour-seg", b);
+  document.getElementById("legend-role").hidden = state.colour !== "role";
+  document.getElementById("legend-type").hidden = state.colour !== "type";
+  document.getElementById("legend-box").hidden = state.colour === "plain";
+  recolour();
+});
+for (const [id, a] of [["nx", 0], ["ny", 1], ["nz", 2]]) {
+  const el = document.getElementById(id);
+  el.oninput = () => {
+    state.n[a] = +el.value;
+    document.getElementById(`${id}-o`).textContent = `${(state.n[a] * M).toFixed(1)} m`;
+    rebuildPavilion(); frame(false);
+  };
+}
+for (const side of ["south", "north", "west", "east"]) {
+  const el = document.getElementById(`e-${side}`);
+  el.onchange = () => { state.doors[side] = el.checked; rebuildPavilion(); };
+}
+document.getElementById("ew").oninput = (e) => {
+  state.doorW = +e.target.value;
+  document.getElementById("ew-o").textContent = `${(state.doorW * M).toFixed(1)} m`;
+  rebuildPavilion();
+};
+document.getElementById("cut").oninput = (e) => { state.cut = +e.target.value; updateCut(); };
+document.getElementById("person").onchange = (e) => { state.person = e.target.checked; person.visible = state.person; };
+
+applyTheme();
+setView("pavilion");
+resize();
+</script>
