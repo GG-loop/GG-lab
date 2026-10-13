@@ -197,3 +197,18 @@ The live studio has a "Climbable sculpture" preset and a "Ledges" view.
   - The edge beams barely help, because the whole arm bends, not just its edge.
   - The recommendation is the thicker sheet in a stiffer glass-fibre grade (E ≈ 7 GPa, about 21 mm), or a slender prop under the arm.
 - **Mass and printing:** 26 t with solid ledges, about 20 t with hollow printed ledges. 94 print parts; the worst joint is at 0.81 of the capacity of a bolted joint.
+
+## Downloading the 3D models
+
+Every viewer page has a **Download 3D (.zip)** button. The artifact viewer only saves a few file types, so each download is a zip holding binary STL in metres with Z up, plus a README:
+
+| Page | What the zip contains |
+|---|---|
+| Studio (`viewer/organic.html`) | The model exactly as shown (solid sheet or mid-surface) and `settings.json` for `organic_pavilion.py -c` |
+| Modular configurator (`viewer/index.html`) | One printable module, the assembled pavilion (mid-surface) and `placements.csv` |
+| Feasibility report | The shell with its stair openings, the stairs, and `stairs.csv` |
+| Sculpture page | The terraced sculpture and `climbing_line.csv` |
+
+The viewer asks for confirmation before each save. The downloads are at viewer resolution; the Python generators write the print-resolution files.
+
+The shared download code lives in `viewer/export_snippet.js`. `python viewer/inline_export.py` copies it into the page sources, then rebuild with `build_viewer.py` / `build_report.py`.

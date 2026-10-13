@@ -79,6 +79,8 @@ p { margin: 0 0 10px; }
 .toggle { display: inline-flex; gap: 6px; align-items: center; cursor: pointer; }
 .toggle input, input[type="range"] { accent-color: var(--accent); }
 button:focus-visible, input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.dl { font: inherit; font-weight: 600; padding: 5px 14px; border-radius: 999px; border: 1px solid var(--ink); background: var(--ink); color: var(--bg); cursor: pointer; }
+.dl:disabled { opacity: 0.6; cursor: progress; }
 .ramp { display: flex; align-items: center; gap: 8px; font-family: var(--font-data); font-size: 0.78rem; color: var(--muted); }
 .ramp i { display: block; width: 160px; height: 10px; border-radius: 2px; background: linear-gradient(90deg, var(--u0) 0%, var(--u1) 30%, var(--u2) 53%, var(--u3) 67%, var(--u4) 100%); }
 
@@ -120,6 +122,8 @@ ol.zones li { margin-bottom: 6px; }
       <label class="toggle"><input type="checkbox" id="t-joints" checked> Worst joints</label>
       <label class="toggle">Section <input type="range" id="cut" min="0" max="100" value="0" aria-label="Section cut"></label>
       <span class="ramp" id="ramp">0 <i></i> 1.5 × design strength</span>
+      <button type="button" class="dl" id="dl" hidden>Download 3D (.zip)</button>
+      <span class="muted" id="dl-o" style="font-size:0.85rem"></span>
     </div>
     <div class="stage" id="stage"></div>
     <p class="muted" style="font-size:0.85rem;margin:0">Colours show the highest utilisation over all load cases (stress / design strength, or compression / local buckling stress). Red circles: the most loaded zones, numbered as in the list below. Amber squares: the assembly joints with the highest tension.</p>
@@ -183,6 +187,129 @@ ol.zones li { margin-bottom: 6px; }
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
 <script>
 const DATA = /*__DATA__*/null;
+// >>> export_snippet.js
+// ---- 3D download (shared by every viewer page; build scripts inline this file)
+// Writes binary STL in metres with Z up (the generator's frame; scenes are Y up),
+// packs it with any extra files into a .zip and offers it through the viewer's
+// `downloads` capability. The viewer confirms every save; the button stays hidden
+// where downloads are not available.
+const Export = (() => {
+  let ns = null;
+  const ready = (window.claude && typeof window.claude.use === "function")
+    ? window.claude.use("downloads").then((d) => { ns = d; return !!d; }, () => false)
+    : Promise.resolve(false);
+
+  // items: [{ geometry: THREE.BufferGeometry, matrix?: THREE.Matrix4 }]
+  function stl(items, header) {
+    let n = 0;
+    for (const { geometry: g } of items) n += (g.index ? g.index.count : g.attributes.position.count) / 3;
+    const buf = new ArrayBuffer(84 + 50 * n), dv = new DataView(buf);
+    const head = (header || "binary STL, metres, Z up").slice(0, 79);
+    for (let i = 0; i < head.length; i++) dv.setUint8(i, head.charCodeAt(i) & 0x7f);
+    dv.setUint32(80, n, true);
+    const a = new THREE.Vector3(), b = new THREE.Vector3(), c = new THREE.Vector3();
+    const u = new THREE.Vector3(), w = new THREE.Vector3();
+    let o = 84;
+    const put = (v) => { dv.setFloat32(o, v.x, true); dv.setFloat32(o + 4, -v.z, true); dv.setFloat32(o + 8, v.y, true); o += 12; };
+    for (const { geometry: g, matrix: m } of items) {
+      const p = g.attributes.position, ix = g.index, cnt = ix ? ix.count : p.count;
+      for (let t = 0; t < cnt; t += 3) {
+        a.fromBufferAttribute(p, ix ? ix.getX(t) : t);
+        b.fromBufferAttribute(p, ix ? ix.getX(t + 1) : t + 1);
+        c.fromBufferAttribute(p, ix ? ix.getX(t + 2) : t + 2);
+        if (m) { a.applyMatrix4(m); b.applyMatrix4(m); c.applyMatrix4(m); }
+        u.subVectors(b, a); w.subVectors(c, a); u.cross(w).normalize();
+        put(u); put(a); put(b); put(c);
+        dv.setUint16(o, 0, true); o += 2;
+      }
+    }
+    return buf;
+  }
+
+  // ---- minimal zip writer: deflate through the browser's CompressionStream, else stored
+  const CRC = (() => {
+    const t = new Uint32Array(256);
+    for (let n = 0; n < 256; n++) { let c = n; for (let k = 0; k < 8; k++) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1; t[n] = c >>> 0; }
+    return t;
+  })();
+  function crc32(u8) {
+    let c = 0xffffffff;
+    for (let i = 0; i < u8.length; i++) c = CRC[(c ^ u8[i]) & 0xff] ^ (c >>> 8);
+    return (c ^ 0xffffffff) >>> 0;
+  }
+  async function deflate(u8) {
+    if (typeof CompressionStream !== "function") return null;
+    try {
+      const stream = new Blob([u8]).stream().pipeThrough(new CompressionStream("deflate-raw"));
+      return new Uint8Array(await new Response(stream).arrayBuffer());
+    } catch (e) { return null; }
+  }
+  async function zip(files) {
+    const parts = [], central = [];
+    let offset = 0;
+    for (const [name, value] of Object.entries(files)) {
+      const data = typeof value === "string" ? new TextEncoder().encode(value) : new Uint8Array(value);
+      const fname = new TextEncoder().encode(name);
+      const packed = await deflate(data);
+      const method = packed && packed.length < data.length ? 8 : 0;
+      const body = method ? packed : data;
+      const crc = crc32(data);
+      const local = new DataView(new ArrayBuffer(30));
+      local.setUint32(0, 0x04034b50, true); local.setUint16(4, 20, true); local.setUint16(6, 0x0800, true);
+      local.setUint16(8, method, true); local.setUint16(10, 0, true); local.setUint16(12, 0x21, true);
+      local.setUint32(14, crc, true); local.setUint32(18, body.length, true); local.setUint32(22, data.length, true);
+      local.setUint16(26, fname.length, true); local.setUint16(28, 0, true);
+      const cen = new DataView(new ArrayBuffer(46));
+      cen.setUint32(0, 0x02014b50, true); cen.setUint16(4, 20, true); cen.setUint16(6, 20, true); cen.setUint16(8, 0x0800, true);
+      cen.setUint16(10, method, true); cen.setUint16(12, 0, true); cen.setUint16(14, 0x21, true);
+      cen.setUint32(16, crc, true); cen.setUint32(20, body.length, true); cen.setUint32(24, data.length, true);
+      cen.setUint16(28, fname.length, true); cen.setUint32(42, offset, true);
+      parts.push(local.buffer, fname, body);
+      central.push(cen.buffer, fname);
+      offset += 30 + fname.length + body.length;
+    }
+    const size = central.reduce((a, b) => a + b.byteLength, 0);
+    const end = new DataView(new ArrayBuffer(22));
+    end.setUint32(0, 0x06054b50, true);
+    end.setUint16(8, Object.keys(files).length, true); end.setUint16(10, Object.keys(files).length, true);
+    end.setUint32(12, size, true); end.setUint32(16, offset, true);
+    return new Blob([...parts, ...central, end.buffer], { type: "application/zip" });
+  }
+
+  // files: { "name.ext": ArrayBuffer | string }
+  async function save(name, files) {
+    if (!(await ready) || !ns) throw { code: "unavailable", message: "Downloads are not available here." };
+    return ns.save({ filename: name + ".zip", data: await zip(files) });
+  }
+
+  // wire a button + status element; build() returns { name, files }
+  function bind(button, status, build) {
+    ready.then((ok) => { button.hidden = !ok; });
+    button.addEventListener("click", async () => {
+      button.disabled = true;
+      status.textContent = "Preparing the 3D file…";
+      try {
+        const { name, files } = await build();
+        const r = await save(name, files);
+        status.textContent = r.status === "saved" ? "Saved." : "Sent.";
+      } catch (e) {
+        const code = e && e.code;
+        status.textContent = code === "declined" ? "Download cancelled."
+          : code === "rate_limited" ? "Another download is waiting for confirmation."
+          : code === "unavailable" || code === "not_granted" ? "Downloads are not available in this view."
+          : "The download failed: " + ((e && e.message) || "unknown error") + ".";
+        if (code === "unavailable" || code === "not_granted") button.hidden = true;
+      } finally {
+        button.disabled = false;
+      }
+    });
+  }
+
+  const readme = (title, lines) => [title, "", "Units: metres. Up axis: Z. Binary STL.", ...lines, ""].join("\r\n");
+  return { ready, stl, save, bind, readme };
+})();
+// <<< export_snippet.js
+
 const R = DATA.report, ST = R.stairs, SS = R.structure;
 const fmt = (x, d = 1) => (x === null || x === undefined) ? "–" : Number(x).toLocaleString("en-GB", { minimumFractionDigits: d, maximumFractionDigits: d });
 const cls = (u) => u <= 0.8 ? "ok" : u <= 1.0 ? "warn" : "bad";
@@ -480,4 +607,21 @@ $("cut").oninput = (e) => {
   const v = +e.target.value;
   cutPlane.constant = v ? bb.max.z - (bb.max.z - bb.min.z) * v / 100 : 1e6;
 };
+
+Export.bind($("dl"), $("dl-o"), () => {
+  const name = "neovius-tower-with-stairs";
+  const files = {
+    "shell_with_openings.stl": Export.stl([{ geometry: shellGeo }], "printed shell with stair openings, metres, Z up"),
+  };
+  if (stairs) files["stairs.stl"] = Export.stl([{ geometry: stairs.geometry }], "printed stairs, metres, Z up");
+  if (ST) files["stairs.csv"] = ["step,kind,support,x_m,y_m,top_m,tread_m,riser_m,width_m,flags"].concat(ST.steps.map((r) =>
+    [r.n, r.kind, r.support, r.xyz[0], r.xyz[1], r.z_top_m, r.tread_m, r.riser_m, r.width_m, `"${r.flags.join("; ")}"`].join(","))).join("\r\n");
+  files["README.txt"] = Export.readme("Neovius tower with stairs, from the feasibility report", [
+    "shell_with_openings.stl: the printed shell with the openings the stair needs (report resolution).",
+    "stairs.stl: the printed stair flights and landings.",
+    "stairs.csv: every step with its position, height, tread, width and open issues.",
+    "Full-resolution solids: python analysis.py writes out_analysis/pavilion_with_stairs.stl and stairs.stl.",
+  ]);
+  return { name, files };
+});
 </script>
