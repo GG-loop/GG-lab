@@ -1,3 +1,4 @@
 out/*
 !out/preview.png
 !out/manifest.json
+__pycache__/
