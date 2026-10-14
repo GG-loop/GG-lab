@@ -212,3 +212,24 @@ Every viewer page has a **Download 3D (.zip)** button. The artifact viewer only 
 The viewer asks for confirmation before each save. The downloads are at viewer resolution; the Python generators write the print-resolution files.
 
 The shared download code lives in `viewer/export_snippet.js`. `python viewer/inline_export.py` copies it into the page sources, then rebuild with `build_viewer.py` / `build_report.py`.
+
+## A closed room with textile membranes
+
+`membranes.py` closes one chamber of the sculpture into a room with tensioned textile membranes.
+
+```bash
+python membranes.py                    # room, membranes -> out_sculpture/membranes.stl, membranes.json
+python analysis.py --art --membranes   # climb + structure with the membrane edge forces
+python build_report.py --sculpture     # the sculpture page with the room
+```
+
+1. **Chambers:** the gyroid's air is two labyrinths, each a chain of chambers joined by narrow necks. A watershed of the air on its distance to the sheet splits it at those necks.
+2. **Room:** the chamber group with the most floor (2.10 m headroom) per m² of opening.
+3. **Membranes:** the room's boundary away from the sheet and the ground. Large pieces are **form-found as minimal surfaces**: the shape a uniformly prestressed fabric takes on its edge, with the edge clamped 3 cm into the printed rim (a keder or clamping detail). The thin slivers along the rims are the clamped hems.
+   - A membrane that comes out too flat to carry wind gets a high point (span / 8) pushed out of the room, which makes it a doubly curved cone.
+4. **Door and hatch:** a zipped 1.2 × 2.2 m door goes into the smallest opening that reaches the ground. Where the climbing line passes through a membrane, a round 1.2 m climbing hatch with a zipped cover is cut, so the climb keeps its full height.
+5. **Checks:**
+   - the room is sealed with the door and hatch closed: a flood fill from its core does not reach the outside;
+   - per membrane: share of doubly curved area, flat area, ponding points;
+   - fabric force = prestress + 1.5 × wind or snow × radius of curvature, against PVC-polyester type II (84 kN/m, safety factor 4);
+   - the edge forces go into the structural model.

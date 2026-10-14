@@ -644,11 +644,21 @@ def ledge_classes(mesh, mesh0, radius=0.3):
     cnt = valid.sum(1)
     mean = np.where(cnt > 0, sl.sum(1) / np.maximum(cnt, 1), 90.0)
     cls = slope_class(mean)
-    cls[(cnt == 0) | (mesh.vertex_normals[:, 2] < -0.2)] = len(CLIMB_CLASSES)
+    # underside: nearer to the plain sheet's down-facing skin than to its up-facing one
+    # (a vertex's own normal is no guide on the ledges: risers and noses face sideways)
+    down = np.where(n0[:, 2] < -0.05)[0]
+    d_dn, _ = cKDTree(mesh0.vertices[down]).query(mesh.vertices)
+    d_up, _ = cKDTree(mesh0.vertices[up]).query(mesh.vertices)
+    cls[(cnt == 0) | (d_dn < d_up)] = len(CLIMB_CLASSES)
+    # majority vote over the 1-ring, twice, for clean bands
+    nb = mesh.vertex_neighbors
+    k = len(CLIMB_CLASSES) + 1
+    for _ in range(2):
+        cls = np.array([np.bincount(np.r_[cls[i], cls[nb[i]]], minlength=k).argmax() for i in range(len(cls))])
     return cls.astype(np.uint8)
 
 
-def climb(cfg, F, axes, mesh, riser, headroom_min=1.9, rim_keep=0.3, log=print):
+def climb(cfg, F, axes, mesh, riser, headroom_min=1.9, rim_keep=0.3, log=print, avoid=None):
     """Best climbing line over the terraced skin, from the ground to the summit.
 
     Works on the untreaded sheet: wherever its up-facing skin is below 58 deg the
@@ -664,6 +674,8 @@ def climb(cfg, F, axes, mesh, riser, headroom_min=1.9, rim_keep=0.3, log=print):
     xw, yw, zw = op.warp(cfg, v[:, 0], v[:, 1], v[:, 2])
     env = op.envelope_sdf(cfg, xw, yw, zw)
     ok = up & (room >= headroom_min) & (env < -rim_keep)
+    if avoid is not None:                       # e.g. a room closed by membranes
+        ok &= ~avoid(v + n * 0.3)
 
     # areas per class (whole sculpture, up-facing skin)
     fcls = slope_class(np.degrees(np.arccos(np.clip(mesh.face_normals[:, 2], -1, 1))))
@@ -779,7 +791,8 @@ def gaussian_curvature_radius(f, h):
     return 1 / np.sqrt(np.abs(K) + 1e-6)
 
 
-def structure(cfg, F, axes, extras, rows, material=MATERIAL, loads=LOADS, log=print, crowd_everywhere=False):
+def structure(cfg, F, axes, extras, rows, material=MATERIAL, loads=LOADS, log=print, crowd_everywhere=False,
+              extra_forces=None):
     from pyamg import smoothed_aggregation_solver
 
     h = float(axes[0][1] - axes[0][0])
@@ -878,11 +891,19 @@ def structure(cfg, F, axes, extras, rows, material=MATERIAL, loads=LOADS, log=pr
     Q_ = np.zeros((ne, 3)); Q_[walk, 2] = -loads["live_kN_m2"] * 1e3 * A
     S_ = np.zeros((ne, 3)); S_[roof, 2] = -loads["snow_kN_m2"] * 1e3 * A
     W_ = np.zeros((ne, 3)); W_[windward, 0] = loads["wind_kN_m2"] * 1e3 * A
+    # membranes: prestress and wind arrive as point forces along their clamped edges
+    Mp = np.zeros((ne, 3))
+    if extra_forces is not None and len(extra_forces[0]):
+        cent = np.stack([axes[a][eidx[:, a]] for a in range(3)], 1)
+        from scipy.spatial import cKDTree
+        _, near = cKDTree(cent).query(extra_forces[0])
+        np.add.at(Mp, near, extra_forces[1])
+        log(f"FE: {len(near)} membrane edge forces, resultant {np.round(Mp.sum(0) / 1e3, 1)} kN")
     cases = {
-        "ULS crowd": 1.35 * G_ + 1.5 * Q_ + 0.75 * S_,
-        "ULS snow": 1.35 * G_ + 1.5 * S_ + 1.05 * Q_,
-        "ULS wind": 1.0 * G_ + 1.5 * W_,
-        "SLS": G_ + Q_ + 0.5 * S_,
+        "ULS crowd": 1.35 * G_ + 1.5 * Q_ + 0.75 * S_ + Mp,
+        "ULS snow": 1.35 * G_ + 1.5 * S_ + 1.05 * Q_ + Mp,
+        "ULS wind": 1.0 * G_ + 1.5 * W_ + Mp,
+        "SLS": G_ + Q_ + 0.5 * S_ + Mp / 1.5,
     }
 
     # strain-displacement at the element centre for stresses
@@ -1080,7 +1101,12 @@ def main_art(args):
     F0, axes = op.field(plain)
     mesh0 = op.to_mesh(F0, axes, cfg["voxel_m"])
     report = {"config": cfg, "mode": "sculpture"}
-    report["climb"] = climb(cfg, F0, axes, mesh0, R, log=log)
+    avoid, mforces = None, None     # the climb passes the room through its door and hatch
+    if args.membranes and (out / "membranes.json").exists():
+        mf = np.load(out / "membrane_forces.npz")
+        mforces = (mf["p"], mf["f"])
+        report["membranes"] = json.loads((out / "membranes.json").read_text())
+    report["climb"] = climb(cfg, F0, axes, mesh0, R, log=log, avoid=avoid)
 
     log("field (terraced) ...")
     F, axes, extras = op.field(cfg, extras=True)
@@ -1099,7 +1125,7 @@ def main_art(args):
                        "build_volume_m": cfg["printer"]["build_volume_m"]}
     log(f"mesh: {report['mesh']}, {len(parts)} print parts")
     if not args.no_fe:
-        st, fo = structure(cfg, F, axes, extras, [], log=log, crowd_everywhere=True)
+        st, fo = structure(cfg, F, axes, extras, [], log=log, crowd_everywhere=True, extra_forces=mforces)
         report["structure"] = st
         np.save(out / "vertex_utilisation.npy", vertex_values(mesh, axes, fo["eidx"], fo["util"], F.shape).astype(np.float32))
     np.save(out / "vertex_class.npy", ledge_classes(mesh, mesh0))
@@ -1115,6 +1141,7 @@ def main():
     ap.add_argument("--target", default=None, help="pod to climb to, e.g. 0,0,1 (default: highest pod)")
     ap.add_argument("--no-fe", action="store_true")
     ap.add_argument("--art", action="store_true", help="the climbable terraced gyroid sculpture")
+    ap.add_argument("--membranes", action="store_true", help="with the membrane-closed room (run membranes.py first)")
     ap.add_argument("--out", default=str(Path(__file__).parent / "out_analysis"))
     args = ap.parse_args()
 

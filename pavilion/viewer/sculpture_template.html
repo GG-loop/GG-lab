@@ -20,6 +20,8 @@
   --ledges: #c4572e;
   --smooth: #d9d5cc;
   --route: #1c1c1a;
+  --membrane: #f6efe2;
+  --frame: #2b2b28;
   --ok: #2f7d4a; --warn: #b7791f; --bad: #b43c2a;
   --u0: #9fb7c7; --u1: #5fae6e; --u2: #e0b03a; --u3: #d9572f; --u4: #7e1d16;
   --scene: #e8eaeb; --ground: #cfc9be;
@@ -31,7 +33,7 @@
   :root:not([data-theme="light"]) {
     --bg: #131416; --paper: #1a1b1e; --ink: #eceae6; --muted: #a39f97; --line: #2f3034;
     --accent: #f0a04a; --skin: #e6e2da; --seat: #6fa6d6; --steps: #6dbb7d; --steep: #e6b45a; --ledges: #e2784f;
-    --smooth: #8b877f; --route: #f4f2ee; --ok: #79c48e; --warn: #e6b45a; --bad: #f08a6c;
+    --smooth: #8b877f; --route: #f4f2ee; --ok: #79c48e; --warn: #e6b45a; --bad: #f08a6c; --membrane: #e8dcc6; --frame: #f4f2ee;
     --u0: #6f8899; --u1: #5fae6e; --u2: #e0b03a; --u3: #e86a40; --u4: #b8342a;
     --scene: #1b1d21; --ground: #24262a;
     color-scheme: dark;
@@ -40,7 +42,7 @@
 :root[data-theme="dark"] {
   --bg: #131416; --paper: #1a1b1e; --ink: #eceae6; --muted: #a39f97; --line: #2f3034;
   --accent: #f0a04a; --skin: #e6e2da; --seat: #6fa6d6; --steps: #6dbb7d; --steep: #e6b45a; --ledges: #e2784f;
-  --smooth: #8b877f; --route: #f4f2ee; --ok: #79c48e; --warn: #e6b45a; --bad: #f08a6c;
+  --smooth: #8b877f; --route: #f4f2ee; --ok: #79c48e; --warn: #e6b45a; --bad: #f08a6c; --membrane: #e8dcc6; --frame: #f4f2ee;
   --u0: #6f8899; --u1: #5fae6e; --u2: #e0b03a; --u3: #e86a40; --u4: #b8342a;
   --scene: #1b1d21; --ground: #24262a;
   color-scheme: dark;
@@ -113,6 +115,7 @@ ol.zones { margin: 0; padding-left: 1.3em; } ol.zones li { margin-bottom: 6px; }
       </div>
       <label class="toggle"><input type="checkbox" id="t-route" checked> Climbing line</label>
       <label class="toggle"><input type="checkbox" id="t-people" checked> People</label>
+      <label class="toggle" id="t-mem-l" hidden><input type="checkbox" id="t-mem" checked> Membranes</label>
       <label class="toggle">Section <input type="range" id="cut" min="0" max="100" value="0" aria-label="Section cut"></label>
       <button type="button" class="dl" id="dl" hidden>Download 3D (.zip)</button>
       <span class="muted" id="dl-o" style="font-size:0.85rem"></span>
@@ -142,6 +145,14 @@ ol.zones { margin: 0; padding-left: 1.3em; } ol.zones li { margin-bottom: 6px; }
       <div class="profile" id="profile"></div>
       <p class="muted" style="font-size:0.85rem;margin-top:8px">Height along the easiest line from the ground to the summit, coloured by ledge type. Shaded where the drop beside the line is more than 1 m.</p>
     </div>
+  </section>
+
+  <section class="col" id="mem-sec" hidden>
+    <h2>A closed room with textile membranes</h2>
+    <div id="mem-text"></div>
+  </section>
+  <section id="mem-tab" hidden>
+    <div class="tbl"><table id="mem-table"></table></div>
   </section>
 
   <section class="col">
@@ -316,6 +327,7 @@ $("lede").innerHTML =
   `One gyroid cell of ${fmt(cfg.cell_m[0], 0)} m, twisted ${fmt(cfg.organic.twist_deg, 0)}°, is the whole piece: ${fmt(M.bounding_box_m[0])} × ${fmt(M.bounding_box_m[1])} × ${fmt(M.bounding_box_m[2])} m. ` +
   `Wherever its surface faces up gently enough, it splits into horizontal ledges ${fmt(riser * 100, 0)} cm apart that follow the contour lines, so the same surface becomes seats, steps and climbing holds. ` +
   `<b>You can climb from the ground to ${fmt(C.summit_m, 2)} m</b> over about ${C.ledges_climbed} ledges; ${fmt(easy * 100, 0)}% of the easiest line is seats or comfortable steps, the rest steep steps and ledges where you use your hands. ` +
+  (R.membranes ? `Underneath, the low chamber of the other labyrinth is closed with ${R.membranes.membranes.length} textile membranes into a ${fmt(R.membranes.room.volume_m3, 0)} m³ room. ` : "") +
   (SS ? (SS.max_displacement_mm <= SS.displacement_limit_mm ? `The shell carries a crowd on every ledge; ` : `It is strong enough but too soft as drawn, so the sheet has to get thicker in the arms; `) : "") + `the open edges need guarding.`;
 
 const V = [
@@ -334,6 +346,11 @@ if (SS) {
   V.push({ k: "Deflection (service)", v: `${fmt(SS.max_displacement_mm)} mm`, c: dOk ? "ok" : "bad", p: dOk ? "passes" : "too soft",
     d: `limit ${fmt(SS.displacement_limit_mm)} mm (cell/250); worst at the arm tip near (${(SS.max_displacement_at_m || []).map((c) => fmt(c, 1)).join(", ")}) m` });
   V.push({ k: "Wind overturning", v: `${fmt(SS.overturning.M_restoring_kNm, 0)} / ${fmt(SS.overturning.M_overturning_kNm, 0)} kNm`, c: SS.overturning.ok ? "ok" : "bad", p: SS.overturning.ok ? "stable" : "anchor it", d: `restoring vs. overturning moment` });
+}
+if (R.membranes) {
+  const M = R.membranes, worst = M.membranes.reduce((a, m) => Math.max(a, m.utilisation), 0);
+  V.push({ k: "Closed room", v: `${fmt(M.room.volume_m3, 0)} m³ · ${fmt(M.room.floor_m2, 1)} m²`, c: M.sealed_with_door_closed && worst <= 1 ? "ok" : "warn",
+    p: M.sealed_with_door_closed ? "sealed" : "leaks", d: `${M.membranes.length} membranes, ${fmt(M.total_area_m2, 0)} m² of fabric, worst at ${fmt(worst, 2)}; door ${M.door ? fmt(M.door.width_m, 1) + " × " + fmt(M.door.clear_height_m, 1) + " m" : "–"}` });
 }
 V.push({ k: "Mass", v: `${fmt(M.mass_kg / 1000, 1)} t`, c: "warn", p: "solid ledges", d: `${fmt(M.mass_hollow_ledges_kg / 1000, 1)} t with hollow printed ledges; sheet alone ${fmt(M.sheet_volume_m3 * 1.35, 1)} t` });
 $("verdicts").innerHTML = V.map((x) => `<div class="verdict"><span class="k">${x.k}</span><span class="v">${x.v}</span><span class="pill ${x.c}">${x.p}</span><span class="d">${x.d}</span></div>`).join("");
@@ -413,6 +430,37 @@ $("method-text").innerHTML = `
 <p><b>Structure.</b> Linear elastic voxel finite elements (8-node hexahedra, ${SS ? fmt(SS.voxel_m * 1000, 0) : 40} mm) of the full terraced solid, solved with algebraic multigrid; self weight, crowd on all up-facing skin, snow and wind with partial factors 1.35 / 1.5. Material: ${SS ? SS.material.name : "printed polymer"}, with low design strengths for layer weakness and creep.</p>
 <p><b>Limits.</b> Screening model: 2–3 elements through the sheet, so bending in thin areas is under-estimated; no creep, temperature, vibration from people moving, or non-linear buckling; joints judged by the tension crossing each cut. The ledges are resolved on a ${fmt((SS ? SS.voxel_m : 0.04) * 100, 0)} cm grid here; the print files should be generated finer. A structural engineer's shell model and tests on printed coupons, ledges and joints come before building.</p>`;
 
+// ===================================================================== membranes text
+const doorDir = (() => {
+  const M = R.membranes;
+  if (!M || !M.door) return [1, 0];
+  // the door runs along the ground edge of its membrane: across the line to the room centre
+  const c = M.membranes.find((m) => m.has_door) || M.membranes[0];
+  const dx = c.centre_m[0] - M.door.at_m[0], dy = c.centre_m[1] - M.door.at_m[1];
+  const l = Math.hypot(dx, dy) || 1;
+  return [-dy / l, dx / l];
+})();
+if (R.membranes) {
+  const M = R.membranes, room = M.room;
+  $("mem-sec").hidden = false; $("mem-tab").hidden = false;
+  const total = M.total_area_m2;
+  const worst = M.membranes.reduce((a, m) => Math.max(a, m.utilisation), 0);
+  const highs = M.membranes.filter((m) => m.high_point);
+  $("mem-text").innerHTML =
+    `<p>The gyroid's air is two labyrinths, each a chain of chambers joined by narrow necks. Splitting the air at those necks (a watershed of the distance to the sheet) and scoring each chamber by usable floor per square metre of opening picked <b>the low chamber under the swirl</b>: ${fmt(room.volume_m3, 0)} m³, ${fmt(room.floor_m2, 1)} m² of floor with 2.10 m headroom, up to ${fmt(room.max_height_m, 1)} m high. ` +
+    `It is closed by <b>${M.membranes.length} textile membranes, ${fmt(total, 0)} m² in all</b>: diaphragms across the necks and skins over the gaps between the printed rims, plus ${fmt(M.hem_area_m2, 0)} m² of hem clamped onto the rims. ` +
+    `${M.door ? `A zipped door ${fmt(M.door.width_m, 1)} × ${fmt(M.door.clear_height_m, 1)} m opens at ground level. ` : ""}` +
+    `${(M.hatches || []).length ? `The climbing line runs through this chamber, so where it meets the membrane a round <b>climbing hatch</b> (Ø ${fmt(M.hatches[0].diameter_m, 1)} m, ${fmt(M.hatches[0].at_m[2], 1)} m up, with a zipped cover) lets climbers leave the room and continue up the swirl: enter by the door, climb the ledges inside, come out through the hatch. ` : ""}` +
+    `With the door and hatch closed no air path leads from the room to the outside${M.sealed_with_door_closed ? "" : " (not yet: a gap remains)"}.</p>` +
+    `<p>Each membrane is <b>form-found as a minimal surface</b> on its edge (the printed rim and the ground): the shape a uniformly prestressed fabric takes, so textile and shell follow the same mathematics. ` +
+    `${highs.length ? `${highs.map((m) => m.id).join(", ")} came out too flat to carry wind, so a strut or ring pushes ${highs.length > 1 ? "their" : "its"} middle out by ${highs.map((m) => fmt(m.high_point.rise_m, 2) + " m").join(", ")}, turning ${highs.length > 1 ? "them" : "it"} into a doubly curved cone. ` : ""}` +
+    `Under wind or snow the most loaded membrane works at ${fmt(worst, 2)} of a ${M.textile.name.toLowerCase()} fabric (strength ${fmt(M.textile.strength_kN_m, 0)} kN/m, safety factor ${fmt(M.textile.safety_factor, 0)}), and no membrane has a level hollow where water could pond. ` +
+    `The membranes' edge forces (prestress and wind) act on the printed rims in the structural model below.</p>`;
+  $("mem-table").innerHTML = `<thead><tr><th>Membrane</th><th class="num">Area</th><th class="num">Span</th><th class="num">Doubly curved</th><th class="num">Flat</th><th class="num">Ponding</th><th class="num">Fabric force</th><th class="num">Util.</th><th>Note</th></tr></thead><tbody>` +
+    M.membranes.map((m) => `<tr><td>${m.id}</td><td class="num">${fmt(m.area_m2, 1)} m²</td><td class="num">${fmt(m.span_m, 1)} m</td><td class="num">${fmt(m.anticlastic_share * 100, 0)}%</td><td class="num">${fmt(m.flat_share * 100, 0)}%</td><td class="num">${m.ponding_points ? "yes" : "none"}</td><td class="num">${fmt(m.textile_force_kN_m, 1)} kN/m</td><td class="num ${cls(m.utilisation)}">${fmt(m.utilisation, 2)}</td><td>${[m.has_door ? "door" : "", m.hatch ? "climbing hatch" : "", m.high_point ? `high point +${fmt(m.high_point.rise_m, 2)} m` : "", m.area_m2 < 1.5 ? "narrow strip along a rim" : ""].filter(Boolean).join(", ") || "–"}</td></tr>`).join("") +
+    `<tr><td colspan="9" class="muted">Fabric force = prestress ${fmt(M.textile.prestress_kN_m, 1)} kN/m + 1.5 × (wind or snow) × the 90th-percentile radius of curvature (a conservative single-curvature bound). Allowable ${fmt(M.textile.strength_kN_m / M.textile.safety_factor, 1)} kN/m.</td></tr></tbody>`;
+}
+
 // ===================================================================== 3D
 const stage = $("stage");
 const renderer = new THREE.WebGLRenderer({ antialias: true });
@@ -462,6 +510,35 @@ scene.add(ground);
 const curvePts = C.route.filter((_, i) => i % 2 === 0).map((p) => new THREE.Vector3(...toScene(p[0], p[1], Math.ceil(p[2] / riser) * riser + 0.06)));
 const routeMat = new THREE.MeshStandardMaterial({ roughness: 0.5 });
 const route = new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(curvePts), Math.min(600, curvePts.length * 3), 0.05, 8, false), routeMat);
+
+// membranes: translucent textile, the door frame drawn as a line
+const memMat = new THREE.MeshStandardMaterial({ roughness: 0.6, side: THREE.DoubleSide, transparent: true, opacity: 0.72, depthWrite: false, clippingPlanes: [cutPlane] });
+const frameMat = new THREE.LineBasicMaterial();
+let memMesh = null, doorFrame = null;
+const MEM = R.membranes;
+if (DATA.membranes && MEM) {
+  const mq = new Uint16Array(b64(DATA.membranes.pos));
+  const mp = new Float32Array(mq.length);
+  for (let i = 0; i < mq.length; i += 3) {
+    const p = toScene(DATA.lo[0] + mq[i] / 65535 * DATA.size, DATA.lo[1] + mq[i + 1] / 65535 * DATA.size, DATA.lo[2] + mq[i + 2] / 65535 * DATA.size);
+    mp[i] = p[0]; mp[i + 1] = p[1]; mp[i + 2] = p[2];
+  }
+  const mg = new THREE.BufferGeometry();
+  mg.setAttribute("position", new THREE.BufferAttribute(mp, 3));
+  mg.setIndex(new THREE.BufferAttribute(new Uint32Array(b64(DATA.membranes.idx)), 1));
+  mg.computeVertexNormals();
+  memMesh = new THREE.Mesh(mg, memMat);
+  memMesh.renderOrder = 2;
+  scene.add(memMesh);
+  if (MEM.door) {
+    const d = MEM.door, w = d.width_m / 2, hgt = d.clear_height_m;
+    // frame in the plane of the membrane around the door point: approximate with a vertical rectangle facing the room
+    const pts = [[-w, 0], [-w, hgt], [w, hgt], [w, 0]].map(([u, z]) => new THREE.Vector3(...toScene(d.at_m[0] + u * doorDir[0], d.at_m[1] + u * doorDir[1], z)));
+    doorFrame = new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts), frameMat);
+    scene.add(doorFrame);
+  }
+  $("t-mem-l").hidden = false;
+}
 scene.add(route);
 
 // people: one at the foot, one sitting on a seat ledge near the line, one at the summit
@@ -503,6 +580,8 @@ function paint() {
   }
   geo.attributes.color.needsUpdate = true;
   routeMat.color = colv("--route");
+  memMat.color = colv("--membrane");
+  frameMat.color = colv("--frame");
   scene.background = colv("--scene");
   groundMat.color = colv("--ground");
 }
@@ -532,6 +611,7 @@ $("c-util").onclick = () => setMode("util");
 $("c-plain").onclick = () => setMode("plain");
 $("t-route").onchange = (e) => { route.visible = e.target.checked; };
 $("t-people").onchange = (e) => { people.visible = e.target.checked; };
+$("t-mem").onchange = (e) => { if (memMesh) memMesh.visible = e.target.checked; if (doorFrame) doorFrame.visible = e.target.checked; };
 $("cut").oninput = (e) => { const v = +e.target.value; cutPlane.constant = v ? bb.max.z - (bb.max.z - bb.min.z) * v / 100 : 1e6; };
 
 Export.bind($("dl"), $("dl-o"), () => {
@@ -541,6 +621,7 @@ Export.bind($("dl"), $("dl-o"), () => {
     name,
     files: {
       "sculpture.stl": Export.stl([{ geometry: geo }], "terraced gyroid sculpture, metres, Z up"),
+      ...(memMesh ? { "membranes.stl": Export.stl([{ geometry: memMesh.geometry }], "textile membranes closing the room, metres, Z up") } : {}),
       "climbing_line.csv": ["x_m,y_m,z_m,ledge"].concat(C.route.map((p, i) => [p[0], p[1], p[2], names[C.route_class[i]] || "smooth"].join(","))).join("\r\n"),
       "README.txt": Export.readme("Twisted gyroid climb", [
         `sculpture.stl: the terraced sculpture with its ${fmt(riser * 100, 0)} cm ledges (report resolution, 4 cm grid).`,

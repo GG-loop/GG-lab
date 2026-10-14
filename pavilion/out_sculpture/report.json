@@ -59,6 +59,149 @@
   }
  },
  "mode": "sculpture",
+ "membranes": {
+  "textile": {
+   "name": "PVC-coated polyester, type II",
+   "strength_kN_m": 84.0,
+   "safety_factor": 4.0,
+   "prestress_kN_m": 1.5,
+   "weight_kg_m2": 0.9
+  },
+  "room": {
+   "chambers": [
+    1
+   ],
+   "volume_m3": 75.6,
+   "floor_m2": 9.3,
+   "max_height_m": 4.43,
+   "floor_per_membrane_m2": 0.222
+  },
+  "door": {
+   "width_m": 1.2,
+   "clear_height_m": 2.2,
+   "at_m": [
+    0.77,
+    -3.88,
+    0.0
+   ],
+   "type": "zipped door in the membrane, with a frame"
+  },
+  "sealed_with_door_closed": true,
+  "hatches": [
+   {
+    "membranes": [
+     2,
+     3
+    ],
+    "at_m": [
+     2.59,
+     -0.04,
+     2.02
+    ],
+    "diameter_m": 1.2,
+    "type": "round climbing hatch with a zipped cover"
+   }
+  ],
+  "route_summit_m": 7.15,
+  "hem_area_m2": 19.0,
+  "membranes": [
+   {
+    "id": "M1",
+    "centre_m": [
+     -0.5,
+     -2.26,
+     3.0
+    ],
+    "high_point": null,
+    "has_door": false,
+    "area_m2": 15.31,
+    "span_m": 6.58,
+    "anticlastic_share": 0.8,
+    "flat_share": 0.06,
+    "mean_curvature_abs_median": 0.083,
+    "radius_p90_m": 7.27,
+    "ponding_points": 0,
+    "design_pressure_kN_m2": 1.32,
+    "textile_force_kN_m": 11.12,
+    "textile_allowable_kN_m": 21.0,
+    "utilisation": 0.53
+   },
+   {
+    "id": "M2",
+    "centre_m": [
+     -0.23,
+     2.08,
+     0.84
+    ],
+    "high_point": {
+     "rise_m": 0.65,
+     "at_m": [
+      -0.18,
+      2.67,
+      0.95
+     ]
+    },
+    "has_door": false,
+    "area_m2": 7.64,
+    "span_m": 5.24,
+    "anticlastic_share": 0.66,
+    "flat_share": 0.01,
+    "mean_curvature_abs_median": 0.218,
+    "radius_p90_m": 5.19,
+    "ponding_points": 0,
+    "design_pressure_kN_m2": 1.2,
+    "textile_force_kN_m": 7.73,
+    "textile_allowable_kN_m": 21.0,
+    "utilisation": 0.37
+   },
+   {
+    "id": "M3",
+    "centre_m": [
+     2.47,
+     -2.01,
+     1.97
+    ],
+    "high_point": null,
+    "has_door": true,
+    "area_m2": 18.64,
+    "span_m": 8.25,
+    "anticlastic_share": 0.8,
+    "flat_share": 0.01,
+    "mean_curvature_abs_median": 0.051,
+    "radius_p90_m": 5.52,
+    "ponding_points": 0,
+    "design_pressure_kN_m2": 1.2,
+    "textile_force_kN_m": 8.12,
+    "textile_allowable_kN_m": 21.0,
+    "utilisation": 0.39,
+    "hatch": true
+   },
+   {
+    "id": "M4",
+    "centre_m": [
+     2.75,
+     -0.4,
+     1.85
+    ],
+    "high_point": null,
+    "has_door": false,
+    "area_m2": 0.7,
+    "span_m": 3.23,
+    "anticlastic_share": 0.0,
+    "flat_share": 0.0,
+    "mean_curvature_abs_median": 6.271,
+    "radius_p90_m": 0.05,
+    "ponding_points": 0,
+    "design_pressure_kN_m2": 1.21,
+    "textile_force_kN_m": 1.56,
+    "textile_allowable_kN_m": 21.0,
+    "utilisation": 0.07,
+    "hatch": true
+   }
+  ],
+  "total_area_m2": 42.3,
+  "voxel_m": 0.05
+ },
  "climb": {
   "riser_m": 0.18,
   "summit_m": 7.15,
@@ -3836,47 +3979,47 @@
   },
   "total_load_kN": {
    "ULS crowd": [
-    0.0,
-    0.0,
-    -944.8
+    53.4,
+    -15.1,
+    -925.0
    ],
    "ULS snow": [
-    0.0,
-    0.0,
-    -766.7
+    53.4,
+    -15.1,
+    -746.9
    ],
    "ULS wind": [
-    92.4,
-    0.0,
-    -260.1
+    145.8,
+    -15.1,
+    -240.3
    ],
    "SLS": [
-    0.0,
-    0.0,
-    -655.9
+    35.6,
+    -10.1,
+    -642.7
    ]
   },
   "cases": {
    "ULS crowd": {
-    "max_principal_tension_MPa": 5.82,
-    "max_compression_MPa": 5.38,
-    "max_interlayer_tension_MPa": 2.33,
-    "utilisation_p99_9": 0.44
+    "max_principal_tension_MPa": 5.88,
+    "max_compression_MPa": 5.47,
+    "max_interlayer_tension_MPa": 2.35,
+    "utilisation_p99_9": 0.45
    },
    "ULS snow": {
-    "max_principal_tension_MPa": 4.69,
-    "max_compression_MPa": 4.34,
-    "max_interlayer_tension_MPa": 1.87,
+    "max_principal_tension_MPa": 4.76,
+    "max_compression_MPa": 4.43,
+    "max_interlayer_tension_MPa": 1.9,
     "utilisation_p99_9": 0.36
    },
    "ULS wind": {
-    "max_principal_tension_MPa": 1.86,
-    "max_compression_MPa": 1.82,
-    "max_interlayer_tension_MPa": 0.77,
-    "utilisation_p99_9": 0.14
+    "max_principal_tension_MPa": 1.97,
+    "max_compression_MPa": 1.92,
+    "max_interlayer_tension_MPa": 0.9,
+    "utilisation_p99_9": 0.16
    },
    "SLS": {
-    "max_displacement_mm": 46.7,
+    "max_displacement_mm": 49.4,
     "at_m": [
      4.17,
      -1.79,
@@ -3884,7 +4027,7 @@
     ]
    }
   },
-  "max_displacement_mm": 46.7,
+  "max_displacement_mm": 49.4,
   "max_displacement_at_m": [
    4.17,
    -1.79,
@@ -3899,8 +4042,8 @@
   },
   "utilisation": {
    "p99": 0.27,
-   "p99_9": 0.44,
-   "max": 0.84,
+   "p99_9": 0.45,
+   "max": 0.86,
    "share_over_1": 0.0
   },
   "buckling_radius_m": {
@@ -3914,80 +4057,82 @@
   "overturning": {
    "wind_force_kN": 61.6,
    "lever_m": 3.06,
-   "M_overturning_kNm": 283.2,
+   "M_overturning_kNm": 374.7,
    "M_restoring_kNm": 692.0,
-   "ok": true
+   "ok": true,
+   "M_membranes_kNm": 91.5,
+   "includes_membranes": true
   },
   "weight_kN": 260.1,
   "zones": [
    {
-    "elements": 471,
+    "elements": 455,
     "centre_m": [
-     1.47,
+     1.51,
      0.15,
      4.02
     ],
-    "max_utilisation": 0.83,
+    "max_utilisation": 0.85,
     "governing": "tension along layers"
    },
    {
-    "elements": 69,
+    "elements": 60,
     "centre_m": [
-     -1.57,
-     3.63,
-     3.74
-    ],
-    "max_utilisation": 0.84,
-    "governing": "tension across print layers"
-   },
-   {
-    "elements": 56,
-    "centre_m": [
-     3.07,
+     3.11,
      0.75,
      4.78
     ],
-    "max_utilisation": 0.81,
+    "max_utilisation": 0.82,
     "governing": "tension across print layers"
    },
    {
-    "elements": 82,
+    "elements": 54,
+    "centre_m": [
+     -1.57,
+     3.67,
+     3.74
+    ],
+    "max_utilisation": 0.77,
+    "governing": "tension across print layers"
+   },
+   {
+    "elements": 80,
     "centre_m": [
      0.63,
      2.55,
      4.66
     ],
-    "max_utilisation": 0.5,
+    "max_utilisation": 0.51,
     "governing": "tension across print layers"
    },
    {
-    "elements": 48,
+    "elements": 61,
     "centre_m": [
      -1.57,
      -3.21,
      2.1
     ],
-    "max_utilisation": 0.51,
+    "max_utilisation": 0.53,
     "governing": "tension along layers"
-   },
-   {
-    "elements": 13,
-    "centre_m": [
-     -3.41,
-     0.47,
-     0.02
-    ],
-    "max_utilisation": 0.66,
-    "governing": "tension across print layers"
    },
    {
     "elements": 16,
     "centre_m": [
-     1.87,
-     -2.73,
-     0.06
+     -3.41,
+     0.51,
+     0.02
     ],
-    "max_utilisation": 0.51,
+    "max_utilisation": 0.74,
+    "governing": "tension across print layers"
+   },
+   {
+    "elements": 33,
+    "centre_m": [
+     -0.33,
+     -3.29,
+     1.5
+    ],
+    "max_utilisation": 0.5,
     "governing": "tension across print layers"
    },
    {
@@ -3997,27 +4142,17 @@
      0.55,
      4.54
     ],
-    "max_utilisation": 0.48,
+    "max_utilisation": 0.49,
     "governing": "tension across print layers"
    },
    {
-    "elements": 15,
+    "elements": 11,
     "centre_m": [
-     -0.37,
-     -3.29,
-     1.5
-    ],
-    "max_utilisation": 0.46,
-    "governing": "tension across print layers"
-   },
-   {
-    "elements": 10,
-    "centre_m": [
-     -1.41,
+     -1.45,
      -0.09,
      2.9
     ],
-    "max_utilisation": 0.48,
+    "max_utilisation": 0.51,
     "governing": "tension across print layers"
    },
    {
@@ -4027,7 +4162,7 @@
      -0.29,
      3.26
     ],
-    "max_utilisation": 0.47,
+    "max_utilisation": 0.49,
     "governing": "tension across print layers"
    },
    {
@@ -4037,8 +4172,18 @@
      -1.97,
      4.02
     ],
-    "max_utilisation": 0.46,
+    "max_utilisation": 0.49,
     "governing": "tension across print layers"
+   },
+   {
+    "elements": 11,
+    "centre_m": [
+     -2.61,
+     -3.17,
+     2.38
+    ],
+    "max_utilisation": 0.45,
+    "governing": "compression"
    }
   ],
   "joints": [
@@ -4046,10 +4191,10 @@
     "axis": "y",
     "at_m": 0.19,
     "contact_area_m2": 2.325,
-    "max_tension_MPa": 4.24,
+    "max_tension_MPa": 4.34,
     "case": "ULS crowd",
-    "tension_force_kN": 980.7,
-    "utilisation": 0.81,
+    "tension_force_kN": 1001.1,
+    "utilisation": 0.83,
     "centre_m": [
      0.79,
      3.02
@@ -4057,25 +4202,12 @@
    },
    {
     "axis": "x",
-    "at_m": -1.81,
-    "contact_area_m2": 2.61,
-    "max_tension_MPa": 2.21,
-    "case": "ULS crowd",
-    "tension_force_kN": 496.5,
-    "utilisation": 0.42,
-    "centre_m": [
-     0.23,
-     2.94
-    ]
-   },
-   {
-    "axis": "x",
     "at_m": 0.19,
     "contact_area_m2": 1.87,
-    "max_tension_MPa": 2.22,
+    "max_tension_MPa": 2.39,
     "case": "ULS crowd",
-    "tension_force_kN": 503.7,
-    "utilisation": 0.42,
+    "tension_force_kN": 495.0,
+    "utilisation": 0.46,
     "centre_m": [
      0.59,
      2.66
@@ -4083,12 +4215,25 @@
    },
    {
     "axis": "x",
+    "at_m": -1.81,
+    "contact_area_m2": 2.61,
+    "max_tension_MPa": 2.28,
+    "case": "ULS crowd",
+    "tension_force_kN": 514.4,
+    "utilisation": 0.43,
+    "centre_m": [
+     0.23,
+     2.94
+    ]
+   },
+   {
+    "axis": "x",
     "at_m": 2.19,
     "contact_area_m2": 2.867,
-    "max_tension_MPa": 2.14,
+    "max_tension_MPa": 2.25,
     "case": "ULS crowd",
-    "tension_force_kN": 726.5,
-    "utilisation": 0.41,
+    "tension_force_kN": 725.0,
+    "utilisation": 0.43,
     "centre_m": [
      -0.13,
      2.98
@@ -4098,10 +4243,10 @@
     "axis": "y",
     "at_m": -1.81,
     "contact_area_m2": 2.006,
-    "max_tension_MPa": 1.73,
+    "max_tension_MPa": 1.84,
     "case": "ULS crowd",
-    "tension_force_kN": 287.8,
-    "utilisation": 0.33,
+    "tension_force_kN": 287.7,
+    "utilisation": 0.35,
     "centre_m": [
      1.15,
      1.34
@@ -4111,9 +4256,9 @@
     "axis": "z",
     "at_m": 4.5,
     "contact_area_m2": 2.646,
-    "max_tension_MPa": 1.43,
+    "max_tension_MPa": 1.41,
     "case": "ULS crowd",
-    "tension_force_kN": 308.7,
+    "tension_force_kN": 312.9,
     "utilisation": 0.27,
     "centre_m": [
      0.11,
@@ -4124,10 +4269,10 @@
     "axis": "z",
     "at_m": 1.5,
     "contact_area_m2": 2.418,
-    "max_tension_MPa": 1.27,
+    "max_tension_MPa": 1.29,
     "case": "ULS crowd",
-    "tension_force_kN": 257.1,
-    "utilisation": 0.24,
+    "tension_force_kN": 264.7,
+    "utilisation": 0.25,
     "centre_m": [
      0.63,
      -0.13
@@ -4137,9 +4282,9 @@
     "axis": "y",
     "at_m": 2.19,
     "contact_area_m2": 2.213,
-    "max_tension_MPa": 1.1,
+    "max_tension_MPa": 1.09,
     "case": "ULS crowd",
-    "tension_force_kN": 428.6,
+    "tension_force_kN": 431.2,
     "utilisation": 0.21,
     "centre_m": [
      0.51,
@@ -4152,7 +4297,7 @@
     "contact_area_m2": 1.314,
     "max_tension_MPa": 0.83,
     "case": "ULS crowd",
-    "tension_force_kN": 126.9,
+    "tension_force_kN": 128.9,
     "utilisation": 0.16,
     "centre_m": [
      -1.49,
@@ -4163,10 +4308,10 @@
     "axis": "z",
     "at_m": 3.0,
     "contact_area_m2": 3.446,
-    "max_tension_MPa": 0.74,
+    "max_tension_MPa": 0.76,
     "case": "ULS crowd",
-    "tension_force_kN": 296.4,
-    "utilisation": 0.14,
+    "tension_force_kN": 304.5,
+    "utilisation": 0.15,
     "centre_m": [
      1.63,
      0.23
@@ -4176,10 +4321,10 @@
     "axis": "y",
     "at_m": -3.81,
     "contact_area_m2": 0.963,
-    "max_tension_MPa": 0.7,
+    "max_tension_MPa": 0.73,
     "case": "ULS crowd",
-    "tension_force_kN": 95.5,
-    "utilisation": 0.13,
+    "tension_force_kN": 101.3,
+    "utilisation": 0.14,
     "centre_m": [
      0.03,
      2.1
@@ -4189,9 +4334,9 @@
     "axis": "x",
     "at_m": -3.81,
     "contact_area_m2": 0.347,
-    "max_tension_MPa": 0.54,
+    "max_tension_MPa": 0.55,
     "case": "ULS crowd",
-    "tension_force_kN": 24.7,
+    "tension_force_kN": 25.0,
     "utilisation": 0.1,
     "centre_m": [
      1.63,
@@ -4204,7 +4349,7 @@
     "contact_area_m2": 0.638,
     "max_tension_MPa": 0.3,
     "case": "ULS crowd",
-    "tension_force_kN": 17.4,
+    "tension_force_kN": 16.1,
     "utilisation": 0.06,
     "centre_m": [
      -0.05,
@@ -4215,9 +4360,9 @@
     "axis": "y",
     "at_m": 4.19,
     "contact_area_m2": 0.301,
-    "max_tension_MPa": 0.26,
+    "max_tension_MPa": 0.25,
     "case": "ULS crowd",
-    "tension_force_kN": 10.4,
+    "tension_force_kN": 10.0,
     "utilisation": 0.05,
     "centre_m": [
      0.15,

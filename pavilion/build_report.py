@@ -59,7 +59,10 @@ def main_sculpture(src=HERE / "out_sculpture"):
     shell = pack(small, lo, size, np.clip(np.round(util / 1.5 * 255), 0, 255))
     shell["cls"] = base64.b64encode(cls.astype("<u1").tobytes()).decode()
     data = {"lo": lo.round(4).tolist(), "size": size, "shell": shell}
-    keep = {k: report[k] for k in ("climb", "mesh", "print", "structure") if k in report}
+    if "membranes" in report and (src / "membranes.stl").exists():
+        mem = trimesh.load(src / "membranes.stl")
+        data["membranes"] = pack(decimate(mem, 60000), lo, size)
+    keep = {k: report[k] for k in ("climb", "mesh", "print", "structure", "membranes") if k in report}
     keep["config"] = {k: report["config"][k] for k in ("surface", "cell_m", "chamber_centre_m", "sheet", "organic",
                                                         "printer", "terraces")}
     data["report"] = keep
